@@ -1,9 +1,14 @@
 # Compiled Policies — success contract, benchmark, and kill test
 
-> **Status (Sep 27, 2026):** three hypotheses tested. H1 rejected, H2 confirmed, and H3 post-hoc
-> **not replicated** in the gate (§9). There is a golden corpus with 130/130 replay (`corpus/`). The architecture is consolidated in
-> **`docs/adr/ADR-001-{FN,API,BE}.md`**, with the executable contract in `contracts/v1/`
-> (`python contracts/validar.py`) and the retrospective in `docs/RETROSPECTIVE.md`.
+> **Status (Sep 27, 2026):** four hypotheses tested; H4 is proposed but not run (§9). H1 rejected,
+> H2 confirmed, and H3 post-hoc **not replicated** in the gate (§9). Jev as the H2 equivalence judge
+> matched Haiku 40/40 at ~287× lower cost (§11). H5, reusing blocks with parameters, covered 20/20
+> substantive variants with 0 silent failures and −72% total cost, and its extractor rejected 12/12
+> variants with new rules (§12); §11 and §12 use synthetic variants and still need real policy changes.
+> There is a golden corpus with 130/130 replay on the recording machine (`corpus/`; 103/130 on Windows,
+> see `CLAUDE.md`). The architecture is consolidated in **`docs/adr/ADR-001-{FN,API,BE}.md`**, with the
+> executable contract in `contracts/v1/` (`python contracts/validar.py`), the retrospective in
+> `docs/RETROSPECTIVE.md` and the prior art in `docs/PRIOR-ART.md`.
 
 Step 2 (diagnosis) of the framework of dynamically connected deterministic blocks.
 Deliverables, all reproducible by seed:
@@ -21,6 +26,9 @@ Deliverables, all reproducible by seed:
 | `resultados/` | CSVs from all sweeps + figure |
 | `docs/adr/` · `contracts/v1/` | ADR-001 (FN, API, BE) and the JSON Schema v1 contract with contract tests |
 | `docs/RETROSPECTIVE.md` | Step 7: false assumptions, where time was lost, heuristics |
+| `docs/PRIOR-ART.md` | Prior art for H2 (B17): what exists, what to adopt or adapt |
+| `juez_jev.py` | §11: Jev as the equivalence judge (OpenRouter), results in `exp/jev_juez/` |
+| `reutilizacion_parametros.py` · `negativos_parametros.py` | §12: H5, parametric reuse and its negative case, results in `exp/parametros/` and `exp/parametros_negativos/` |
 | `corpus/` | Golden corpus v1: 130 tasks with recorded events, artifacts, and calls; 130/130 replay |
 
 ```bash
