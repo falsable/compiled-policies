@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0,
+  "diferencia": "Los umbrales de importe acumulado para determinar el aprobador (Regla 3) son diferentes. POLÍTICA A: ≤500€→'auto', ≤5000€→'jefe_departamento', >5000€→'direccion'. POLÍTICA B: ≤750€→'auto', ≤4000€→'jefe_departamento', >4000€→'direccion'. Un programa escrito para A asignaría aprobadores incorrectos en B para importes acumulados entre 501-750€ y entre 4001-5000€."
+}
+```

@@ -1,0 +1,158 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+
+# Paso 1: Cargar el CSV
+df = pd.read_csv('datos.csv', sep=';', dtype=str, keep_default_na=False)
+df.columns = df.columns.str.strip()
+
+# Paso 2: Deduplicar por id
+def normalize_id_for_dedup(id_str):
+    """Normaliza el ID para deduplicación"""
+    id_str = str(id_str).strip()
+    if id_str == '':
+        return id_str
+    try:
+        val = float(id_str)
+        return str(val)
+    except:
+        return id_str
+
+df['_id_norm'] = df['id'].apply(normalize_id_for_dedup)
+df = df.drop_duplicates(subset='_id_norm', keep='first')
+df = df.drop('_id_norm', axis=1)
+df = df.reset_index(drop=True)
+
+# Paso 3: Convertir valores
+def convert_to_number(val):
+    """Convierte un valor a número"""
+    val = str(val).strip()
+    if val == '' or val == '""':
+        return np.nan
+    val = val.replace(',', '.')
+    try:
+        return float(val)
+    except:
+        return np.nan
+
+# Identificar columnas numéricas
+numeric_cols = []
+for col in df.columns:
+    if col in ['id', 'region']:
+        continue
+    
+    converted = df[col].apply(convert_to_number)
+    non_nan_count = converted.notna().sum()
+    total_count = len(converted)
+    
+    if total_count > 0:
+        success_rate = non_nan_count / total_count
+        if success_rate >= 0.95:
+            df[col] = converted
+            numeric_cols.append(col)
+
+# Aplicar strip a region
+df['region'] = df['region'].apply(lambda x: str(x).strip())
+
+# Paso 4: Regla 1 - Encontrar el par
+eligible_cols = []
+for col in numeric_cols:
+    missing_count = df[col].isna().sum()
+    total_count = len(df)
+    missing_frac = missing_count / total_count
+    if missing_frac <= 0.20:
+        eligible_cols.append(col)
+
+best_abs_r = -1
+best_pair = None
+
+for i, col_a in enumerate(eligible_cols):
+    for col_b in eligible_cols[i+1:]:
+        valid_mask = df[col_a].notna() & df[col_b].notna()
+        n_valid = valid_mask.sum()
+        
+        if n_valid < 3:
+            continue
+        
+        a_vals = df.loc[valid_mask, col_a].values
+        b_vals = df.loc[valid_mask, col_b].values
+        
+        if np.var(a_vals) == 0 or np.var(b_vals) == 0:
+            continue
+        
+        corr_matrix = np.corrcoef(a_vals, b_vals)
+        r = corr_matrix[0, 1]
+        abs_r = abs(r)
+        
+        if abs_r > best_abs_r:
+            best_abs_r = abs_r
+            best_pair = tuple(sorted([col_a, col_b]))
+
+# Paso 5: Regla 2 - Detectar anomalías
+anomaly_mask = pd.Series(False, index=df.index)
+
+for region in df['region'].unique():
+    region_mask = df['region'] == region
+    
+    for col in numeric_cols:
+        values_in_region = df.loc[region_mask, col]
+        col_data = values_in_region.dropna()
+        
+        if len(col_data) == 0:
+            continue
+        
+        median = col_data.median()
+        abs_dev = (col_data - median).abs()
+        mad = abs_dev.median()
+        
+        if mad == 0:
+            continue
+        
+        scale = 4.5 * 1.4826 * mad
+        
+        for idx in df[region_mask].index:
+            if pd.notna(df.loc[idx, col]):
+                val = df.loc[idx, col]
+                if abs(val - median) > scale:
+                    anomaly_mask[idx] = True
+
+# Paso 6: Extraer IDs de filas anómalas
+def id_is_not_empty(id_val):
+    return str(id_val).strip() != ''
+
+valid_anomaly_mask = anomaly_mask & df['id'].apply(id_is_not_empty)
+anomaly_ids_raw = df.loc[valid_anomaly_mask, 'id'].tolist()
+anomaly_ids_unique = list(set(anomaly_ids_raw))
+
+# Verificar si todos los IDs son numéricos
+all_numeric = True
+for id_str in anomaly_ids_unique:
+    id_str = str(id_str).strip()
+    try:
+        float(id_str)
+    except:
+        all_numeric = False
+        break
+
+# Canonicalizar y ordenar
+if all_numeric:
+    anomaly_ids_final = []
+    for id_str in anomaly_ids_unique:
+        val = float(id_str)
+        if val == int(val):
+            anomaly_ids_final.append(int(val))
+        else:
+            anomaly_ids_final.append(val)
+    anomaly_ids_final.sort()
+else:
+    anomaly_ids_final = sorted(anomaly_ids_unique)
+
+# Construir resultado
+result = {
+    "par": list(best_pair) if best_pair else [],
+    "anomalias": anomaly_ids_final
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

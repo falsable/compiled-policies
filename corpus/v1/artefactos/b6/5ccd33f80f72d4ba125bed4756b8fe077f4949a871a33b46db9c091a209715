@@ -1,0 +1,9 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.05,
+  "diferencia": "La Regla 2 (detección de anomalías) tiene un criterio distinto: POLÍTICA A calcula la mediana y MAD por cada 'region' de forma independiente, mientras que POLÍTICA B calcula la mediana y MAD sobre TODA la columna sin separar por región. Esto produce umbrales de anomalía diferentes y resultados no equivalentes en la mayoría de casos con múltiples regiones."
+}
+```
+
+**Motivo:** En la Regla 2, el cambio de "calculada DENTRO DE SU 'region'" (A) a "calculada sobre TODA la columna, sin separar por 'region'" (B) es un cambio de **criterio y regla**, no solo de redacción. Las anomalías detectadas serán diferentes cuando haya variabilidad entre regiones, que es lo habitual en datos reales.

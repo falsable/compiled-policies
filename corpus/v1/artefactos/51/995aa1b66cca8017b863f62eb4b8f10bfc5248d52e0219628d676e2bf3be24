@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.02,
+  "diferencia": "Cambio crítico en el umbral de desviaciones robustas en la regla 2: Política A usa 4.5 MAD, Política B usa 3.5 MAD. Esto generará diferentes conjuntos de 'anomalias' (más filas detectadas como anómalas en Política B). Los pares de correlación máxima serían idénticos, pero los resultados finales difieren."
+}
+```

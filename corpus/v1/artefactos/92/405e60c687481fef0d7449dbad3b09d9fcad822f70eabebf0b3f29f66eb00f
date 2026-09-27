@@ -1,0 +1,86 @@
+```python
+import json
+import pandas as pd
+import numpy as np
+
+# Load CSV with dtype=str to preserve all values
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip whitespace and convert empty strings to NaN
+for col in df.columns:
+    df[col] = df[col].str.strip()
+    df[col] = df[col].replace('', np.nan)
+
+# Deduplicate by id, keeping first occurrence
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Convert numeric columns (all except 'id' and 'region')
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+for col in numeric_cols:
+    # Replace comma with dot for decimal separator
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    # Convert to numeric
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Identify eligible columns (≤20% missing values)
+eligible_cols = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / len(df)
+    if frac_na <= 0.20:
+        eligible_cols.append(col)
+
+# Calculate Pearson correlation matrix for eligible columns
+corr_matrix = df[eligible_cols].corr(method='pearson')
+
+# Find the pair with maximum absolute correlation
+max_abs_corr = -1
+best_pair = None
+
+for i in range(len(eligible_cols)):
+    for j in range(i + 1, len(eligible_cols)):
+        col_i = eligible_cols[i]
+        col_j = eligible_cols[j]
+        corr_val = corr_matrix.loc[col_i, col_j]
+        
+        if pd.notna(corr_val) and abs(corr_val) > max_abs_corr:
+            max_abs_corr = abs(corr_val)
+            best_pair = sorted([col_i, col_j])
+
+# Find anomalies using MAD within regions
+anomalous_ids = set()
+
+for region, region_df in df.groupby('region', dropna=False):
+    for col in numeric_cols:
+        # Get non-NaN values for this column in this region
+        values = region_df[col].dropna().values
+        
+        if len(values) == 0:
+            continue
+        
+        # Calculate median and MAD
+        median_val = np.median(values)
+        mad_val = np.median(np.abs(values - median_val))
+        
+        # Skip if MAD is 0
+        if mad_val == 0:
+            continue
+        
+        # Calculate threshold: 3.5 * MAD * 1.4826
+        threshold = 3.5 * mad_val * 1.4826
+        
+        # Mark anomalies where |x - median| > threshold
+        for idx, row in region_df.iterrows():
+            if pd.notna(row[col]):
+                if abs(row[col] - median_val) > threshold:
+                    anomalous_ids.add(row['id'])
+
+# Prepare output
+result = {
+    'par': best_pair,
+    'anomalias': sorted(list(anomalous_ids))
+}
+
+# Print JSON to stdout
+print(json.dumps(result, ensure_ascii=False))
+```

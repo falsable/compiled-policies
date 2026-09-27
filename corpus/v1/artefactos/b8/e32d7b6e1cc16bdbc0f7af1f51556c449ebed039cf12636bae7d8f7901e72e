@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.98,
+  "diferencia": "No hay diferencias sustanciales. Las políticas son equivalentes en todos los criterios, umbrales, reglas y procesos. Las únicas diferencias son de formato y redacción: A usa numeración (1,2,3,4) vs B letras (a,b,c); A dice 'en otro caso' vs B 'resto'; A 'ya lo es' vs B 'se deja igual'; A 'no aparecen' vs B 'no se listan'. Coinciden perfectamente en: ordenamiento (fecha+id), formatos de moneda, conversión (round(importe×tipo,2)), IVA (+1.21 o incluido), regla proveedor (homologación+excepción seguridad), regla presupuesto (escalada si sobrepasa), regla aprobada (acumulado en 7 días: ≤500€=auto, ≤5000€=jefe, >5000€=dirección), revision_it (software+aprobada/escalada), cancelaciones (devuelve presupuesto si estaba aprobada, no lista en decisiones), redondeo a 2 decimales."
+}
+```

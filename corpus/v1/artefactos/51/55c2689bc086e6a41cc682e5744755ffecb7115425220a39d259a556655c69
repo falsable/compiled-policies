@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Ninguna diferencia material. Ambas políticas especifican idénticamente: (1) conservar solo la primera aparición de cada 'id'; (2) tratar celdas vacías como ausentes y valores con coma decimal como números; (3) seleccionar el par de columnas numéricas (≤20% ausentes) con máxima correlación de Pearson en valor absoluto, calculada pairwise; (4) marcar filas anómalas si algún valor presente se aleja >4.5×(MAD×1.4826) de la mediana por región, con exclusión cuando MAD=0; (5) devolver JSON con listas ordenadas. Las pequeñas variaciones de redacción ('desviaciones robustas' vs '×(MAD×1.4826)', 'valores no ausentes' vs 'valor presente') son sinónimas. El 1% de incertidumbre refleja únicamente que ambas políticas dejan 'region' sin definir formalmente, pero esa ambigüedad es idéntica en ambas."
+}
+```

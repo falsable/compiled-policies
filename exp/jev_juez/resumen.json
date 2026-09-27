@@ -1,0 +1,17 @@
+{
+ "fecha": "2026-09-27",
+ "modelo": "typesafe/jev-1.13",
+ "umbral": 0.8,
+ "casos": 40,
+ "acierto_%": 100.0,
+ "reutiliza_sustantivas": 0,
+ "regenera_equivalentes": 0,
+ "coste_jev_$": 0.0019880699999999993,
+ "coste_haiku_$": 0.570354,
+ "latencia_mediana_s": 0.314,
+ "veredicto": "Jev SOBREVIVE como juez",
+ "sha256": {
+  "juez_jev.py": "68ef46551d8c64b2d14045e1e50907889d600acdd82ed23506366e1bf6bfdfa1",
+  "exp/reutilizacion/evaluacion.jsonl": "80cfdcdc2f1efc65a311413635f25682226d3561efa2a44b15651bf94be9f3ef"
+ }
+}

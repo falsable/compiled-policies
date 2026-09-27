@@ -1,0 +1,22 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.98,
+  "diferencia": "Ninguna diferencia funcional detectada. Ambas políticas definen exactamente los mismos criterios de decisión, umbrales (500€, 5000€), ventanas (7 días), categorías (seguridad, software), reglas de proveedor, presupuesto, acumulado e IVA. Las variaciones son solo de redacción y formato de presentación."
+}
+```
+
+**Análisis detallado:**
+
+✓ **Ordenamiento**: Fecha ascendente, empates por id alfabético — idéntico  
+✓ **Monedas y formatos**: EUR (español/plano), USD/GBP (anglosajón) — idéntico  
+✓ **Conversión**: `round(importe × tipo, 2)` — idéntico  
+✓ **IVA**: "+ IVA" → `round(eur × 1.21, 2)`; "(IVA incluido)" → ya incluido — idéntico  
+✓ **Regla 1**: Proveedor no homologado → rechazada; excepción seguridad+urgente → escalada — idéntico  
+✓ **Regla 2**: Presupuesto insuficiente → escalada a finanzas — idéntico  
+✓ **Regla 3**: Aprobada con acumulado (≤500€ auto / ≤5000€ jefe / >5000€ dirección) — idéntico  
+✓ **Regla 4**: `revision_it = true` si software + (aprobada|escalada) — idéntico  
+✓ **Cancelaciones**: Estado cancelada, motivo "cancelada_por_solicitante", no en decisiones — idéntico  
+✓ **Redondeo**: 2 decimales — idéntico  
+
+**Un programa para POLÍTICA A funciona sin cambios en POLÍTICA B.**

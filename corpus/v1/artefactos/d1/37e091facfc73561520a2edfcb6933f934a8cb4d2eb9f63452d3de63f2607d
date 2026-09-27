@@ -1,0 +1,76 @@
+import pandas as pd
+import numpy as np
+import json
+
+# Cargar CSV como strings
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip de espacios en todas las celdas
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col] = df[col].str.strip()
+
+# Deduplicar por id, manteniendo la primera aparición
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Definir columnas numéricas
+numeric_cols = ['visitas', 'humedad', 'tiempo_entrega', 'coste_envio', 'ventas', 'clics', 
+                'tickets_soporte', 'stock', 'temperatura', 'devoluciones', 'incidencias', 
+                'conversiones', 'averias']
+
+# Convertir columnas numéricas (reemplazar comas por puntos, vacíos por NaN)
+for col in numeric_cols:
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = df[col].replace('', np.nan)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Filtrar columnas elegibles (≤20% de NaN)
+n_rows = len(df)
+eligible = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / n_rows
+    if frac_na <= 0.20:
+        eligible.append(col)
+
+# Calcular matriz de correlación de Pearson
+corr_matrix = df[eligible].corr(method='pearson')
+
+# Encontrar par con mayor correlación en valor absoluto
+max_corr = -1
+best_pair = None
+for i in range(len(eligible)):
+    for j in range(i + 1, len(eligible)):
+        col_a = eligible[i]
+        col_b = eligible[j]
+        r = corr_matrix.loc[col_a, col_b]
+        if pd.notna(r) and abs(r) > max_corr:
+            max_corr = abs(r)
+            best_pair = sorted([col_a, col_b])
+
+# Detectar filas anómalas
+anomaly_mask = pd.Series([False] * len(df), index=df.index)
+
+for col in numeric_cols:
+    x = df[col].dropna()
+    if len(x) == 0:
+        continue
+    
+    median = x.median()
+    mad = (x - median).abs().median()
+    
+    if mad == 0:
+        continue
+    
+    threshold = 4.5 * 1.4826 * mad
+    anomaly_col = (df[col] - median).abs() > threshold
+    anomaly_mask |= anomaly_col
+
+# Obtener IDs de filas anómalas
+anomaly_ids = sorted(df.loc[anomaly_mask, 'id'].unique().tolist())
+
+# Construir y imprimir resultado
+result = {
+    'par': best_pair,
+    'anomalias': anomaly_ids
+}
+print(json.dumps(result, ensure_ascii=False))

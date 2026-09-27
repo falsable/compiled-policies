@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Las políticas son funcionalmente idénticas. Solo cambian aspectos de redacción/formulación: 'descuenta' vs 'se resta', 'no aparecen' vs 'no se incluyen', '7 días anteriores (incluida la misma fecha)' vs '7 días previos (la misma fecha cuenta)'. El orden de procesamiento, cálculo de importes, conversión de divisas, IVA, reglas de rechazo/escalada/aprobación, criterios de acumulado, manejo de cancelaciones y revision_it son idénticos. No hay cambios de umbrales, ventanas, criterios o reglas que afecten resultados."
+}
+```

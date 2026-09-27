@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.02,
+  "diferencia": "En la Regla 1, el umbral de valores ausentes permitidos para columnas numéricas cambió de '20%' (POLÍTICA A) a '35%' (POLÍTICA B). Esto significa que programas escritos para A rechazarían columnas que B aceptaría, potencialmente produciendo un par de correlación máxima diferente. Solo serían equivalentes en datasets donde ninguna columna entre 20–35% de ausencia presente correlación superior a las de ≤20%."
+}
+```

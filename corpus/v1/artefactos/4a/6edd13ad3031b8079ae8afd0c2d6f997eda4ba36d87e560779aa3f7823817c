@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 1.0,
+  "diferencia": "Solo cambios de redacción y formato. Los criterios son idénticos: (1) Procesamiento por fecha ascendente con empates alfabéticos por id; (2) Conversión de importes y tratamiento de IVA idénticos; (3) Reglas de rechazo, escalada y aprobación numéricamente equivalentes (≤ 500€ = 'hasta 500€', ≤ 5000€ = 'hasta 5000€', > 5000€ = 'más de 5000€'); (4) Cálculo de acumulado, cancelaciones y revision_it idénticos; (5) Redondeo a 2 decimales. POLÍTICA B es más explícita (ej: 'revision_it false en otro caso') pero produce exactamente el mismo resultado que POLÍTICA A para cualquier entrada."
+}
+```

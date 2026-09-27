@@ -1,0 +1,41 @@
+{
+ "schema_version": "1.0.0",
+ "evento_id": "evt_01JAZ000000000000000000003",
+ "tarea_id": "tar_01JAZ000000000000000000002",
+ "ts": "2026-09-27T10:00:00Z",
+ "proceso": "negocio-compras",
+ "clave_idempotencia": "negocio-extremo-005",
+ "hash_entradas": "sha256:e4519699f8bf9d831c7ed6018835eb0c57fd35ab1f2b9d671677a5810125dd9a",
+ "hash_politica": "sha256:5d637c2c09ae887a6bdf2c69fdd300b1f535295b800c1bb42c545109fac45aff",
+ "bloque": {
+  "id": "blq_01JAZ000000000000000000001",
+  "version": "1.0.0",
+  "hash_codigo": "sha256:0327146f46579eeb636b017a38a4ff8c063c5d160298adfe684ab99118435a19"
+ },
+ "pasos": [
+  {
+   "tipo": "hash",
+   "resultado": "igual",
+   "coste_eur": 0.0
+  },
+  {
+   "tipo": "perfil",
+   "resultado": "dentro",
+   "coste_eur": 0.0
+  },
+  {
+   "tipo": "ejecutar_bloque",
+   "resultado": "ok",
+   "coste_eur": 0.0,
+   "artefacto": "sha256:0720e2d0d363159e4072f86015efdbc55517ab08a95a9e7bdc3a436033f0ed9d"
+  },
+  {
+   "tipo": "invariantes",
+   "resultado": "ok",
+   "coste_eur": 0.0
+  }
+ ],
+ "decision": "reutilizar",
+ "hash_salida": "sha256:0720e2d0d363159e4072f86015efdbc55517ab08a95a9e7bdc3a436033f0ed9d",
+ "coste_total_eur": 0.004
+}

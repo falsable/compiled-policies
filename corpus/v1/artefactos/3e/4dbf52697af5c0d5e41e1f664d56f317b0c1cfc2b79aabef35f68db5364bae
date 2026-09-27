@@ -1,0 +1,90 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+
+# Cargar CSV como strings
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Convertir celdas vacías y solo espacios a NaN
+def clean_value(x):
+    if isinstance(x, str):
+        x = x.strip()
+        if x == '':
+            return np.nan
+        return x
+    return x
+
+for col in df.columns:
+    df[col] = df[col].apply(clean_value)
+
+# Deduplicar
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Identificar columnas numéricas (todas excepto id y region)
+numeric_cols = [c for c in df.columns if c not in ['id', 'region']]
+
+# Convertir columnas numéricas
+for col in numeric_cols:
+    def convert_numeric(x):
+        if isinstance(x, str):
+            x = x.replace(',', '.')
+        return x
+    
+    df[col] = df[col].apply(convert_numeric)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Regla 1 - Filtrar por 35% de ausentes y correlacionar
+miss_fraction = df[numeric_cols].isna().mean()
+candidates = [c for c in numeric_cols if miss_fraction[c] <= 0.35]
+
+# Calcular correlación por pares (eliminación por pares)
+max_corr = -1
+best_pair = None
+
+for i, c1 in enumerate(candidates):
+    for c2 in candidates[i+1:]:
+        # Usar solo filas donde ambas columnas tienen valor
+        mask = df[c1].notna() & df[c2].notna()
+        if mask.sum() > 1:
+            corr = df.loc[mask, c1].corr(df.loc[mask, c2])
+            if not np.isnan(corr) and abs(corr) > max_corr:
+                max_corr = abs(corr)
+                best_pair = sorted([c1, c2])
+
+par = best_pair
+
+# Regla 2 - Anomalías por región
+anomalies_ids = set()
+
+for region_name, region_df in df.groupby('region', dropna=True):
+    for col in numeric_cols:
+        values = region_df[col].dropna()
+        if len(values) == 0:
+            continue
+        
+        median = values.median()
+        mad = (values - median).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        scale = 1.4826 * mad
+        
+        # Identificar anomalías en esta columna dentro de esta región
+        deviations = (region_df[col] - median).abs()
+        anomalous = deviations > 4.5 * scale
+        
+        if anomalous.sum() > 0:
+            anomalies_ids.update(region_df.loc[anomalous, 'id'].values)
+
+anomalies = sorted(list(anomalies_ids))
+
+# Salida JSON
+result = {
+    'par': par,
+    'anomalias': anomalies
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

@@ -1,0 +1,96 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Paso 1: Cargar CSV como texto
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Hacer strip a todas las celdas
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# Reemplazar '' por NaN
+df = df.replace('', np.nan)
+
+# Paso 2: Deduplicar por 'id' (keep='first')
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Paso 3: Convertir columnas numéricas
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+# Guardar las columnas originales antes de convertir
+df_str = df[numeric_cols].copy()
+
+for col in numeric_cols:
+    # Reemplazar coma decimal y convertir a float
+    col_data = df_str[col].fillna('').str.replace(',', '.', regex=False)
+    col_data = pd.to_numeric(col_data, errors='coerce')
+    df[col] = col_data
+
+# Paso 4: Filtrar columnas elegibles (<=35% ausentes)
+elegibles = []
+for col in numeric_cols:
+    frac_na = df[col].isna().mean()
+    if frac_na <= 0.35:
+        elegibles.append(col)
+
+# Paso 5: Calcular correlaciones pairwise - encontrar par con mayor |Pearson|
+best_r = -2
+best_pair = None
+
+for col_a, col_b in combinations(elegibles, 2):
+    mask = df[col_a].notna() & df[col_b].notna()
+    n_common = mask.sum()
+    
+    if n_common < 3:
+        continue
+    
+    x = df.loc[mask, col_a].values
+    y = df.loc[mask, col_b].values
+    
+    r = np.corrcoef(x, y)[0, 1]
+    
+    if not np.isnan(r):
+        abs_r = abs(r)
+        if abs_r > best_r:
+            best_r = abs_r
+            best_pair = tuple(sorted([col_a, col_b]))
+
+# Paso 6: Detectar anomalías por región
+anomalies_ids = set()
+
+for region, group in df.groupby('region', dropna=False):
+    for col in numeric_cols:
+        vals = group[col].dropna()
+        
+        if len(vals) == 0:
+            continue
+        
+        # Calcular mediana y MAD
+        med = vals.median()
+        mad = (vals - med).abs().median()
+        
+        # Si MAD = 0, esta columna no marca anomalías en esta región
+        if mad == 0:
+            continue
+        
+        # Umbral: 4.5 * MAD * 1.4826
+        umbral = 4.5 * 1.4826 * mad
+        
+        # Marcar filas anómalas
+        for idx, row in group.iterrows():
+            if pd.notna(row[col]):
+                if abs(row[col] - med) > umbral:
+                    anomalies_ids.add(row['id'])
+
+# Paso 7: Construir resultado JSON
+anomalias_sorted = sorted(list(anomalies_ids))
+result = {
+    "par": list(best_pair),
+    "anomalias": anomalias_sorted
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

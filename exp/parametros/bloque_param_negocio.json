@@ -1,0 +1,165 @@
+{
+ "dominio": "negocio",
+ "ok": true,
+ "esquema": [
+  {
+   "nombre": "tasa_iva",
+   "tipo": "number",
+   "defecto": 1.21,
+   "valores_o_rango": ">= 1.0",
+   "descripcion": "Multiplicador aplicado al importe en EUR cuando el texto indica '+ IVA'"
+  },
+  {
+   "nombre": "marcador_iva_sumar",
+   "tipo": "string",
+   "defecto": "+ IVA",
+   "valores_o_rango": "texto no vacío",
+   "descripcion": "Texto que indica que al importe hay que sumarle el IVA"
+  },
+  {
+   "nombre": "marcador_iva_incluido",
+   "tipo": "string",
+   "defecto": "(IVA incluido)",
+   "valores_o_rango": "texto no vacío",
+   "descripcion": "Texto que indica que el importe ya incluye el IVA"
+  },
+  {
+   "nombre": "monedas_formato_anglosajon",
+   "tipo": "list[string]",
+   "defecto": [
+    "USD",
+    "GBP"
+   ],
+   "valores_o_rango": "códigos de moneda presentes en tipos_cambio",
+   "descripcion": "Monedas que se detectan en el texto y usan formato 1,234.56. Si no se detecta ninguna, la moneda es EUR (formato español o plano)"
+  },
+  {
+   "nombre": "decimales_redondeo",
+   "tipo": "integer",
+   "defecto": 2,
+   "valores_o_rango": ">= 0",
+   "descripcion": "Número de decimales al que se redondean los importes y el presupuesto final"
+  },
+  {
+   "nombre": "excepcion_seguridad_activa",
+   "tipo": "boolean",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Activa la excepción que escala en lugar de rechazar a un proveedor no homologado"
+  },
+  {
+   "nombre": "categorias_excepcion_proveedor",
+   "tipo": "list[string]",
+   "defecto": [
+    "seguridad"
+   ],
+   "valores_o_rango": "lista de categorías",
+   "descripcion": "Categorías a las que se aplica la excepción por proveedor no homologado"
+  },
+  {
+   "nombre": "excepcion_requiere_urgente",
+   "tipo": "boolean",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Si es true, la excepción solo se aplica cuando la solicitud es urgente"
+  },
+  {
+   "nombre": "aprobador_excepcion_proveedor",
+   "tipo": "string",
+   "defecto": "direccion",
+   "valores_o_rango": "auto | jefe_departamento | direccion | finanzas",
+   "descripcion": "Aprobador asignado a las solicitudes escaladas por la excepción"
+  },
+  {
+   "nombre": "aprobador_sin_presupuesto",
+   "tipo": "string",
+   "defecto": "finanzas",
+   "valores_o_rango": "auto | jefe_departamento | direccion | finanzas",
+   "descripcion": "Aprobador asignado a las solicitudes escaladas por falta de presupuesto"
+  },
+  {
+   "nombre": "ventana_acumulado_dias",
+   "tipo": "integer",
+   "defecto": 7,
+   "valores_o_rango": ">= 0",
+   "descripcion": "Días anteriores (la misma fecha incluida) que se consideran al calcular el importe acumulado"
+  },
+  {
+   "nombre": "umbral_auto",
+   "tipo": "number",
+   "defecto": 500,
+   "valores_o_rango": ">= 0",
+   "descripcion": "Con un acumulado menor o igual a este valor, el aprobador es 'auto'"
+  },
+  {
+   "nombre": "umbral_jefe_departamento",
+   "tipo": "number",
+   "defecto": 5000,
+   "valores_o_rango": ">= umbral_auto",
+   "descripcion": "Con un acumulado menor o igual a este valor, el aprobador es 'jefe_departamento'. Por encima, es 'direccion'"
+  },
+  {
+   "nombre": "categorias_revision_it",
+   "tipo": "list[string]",
+   "defecto": [
+    "software"
+   ],
+   "valores_o_rango": "lista de categorías",
+   "descripcion": "Categorías que activan revision_it"
+  },
+  {
+   "nombre": "estados_revision_it",
+   "tipo": "list[string]",
+   "defecto": [
+    "aprobada",
+    "escalada"
+   ],
+   "valores_o_rango": "subconjunto de {aprobada, escalada, rechazada}",
+   "descripcion": "Estados en los que se marca revision_it = true"
+  },
+  {
+   "nombre": "devolver_presupuesto_al_cancelar",
+   "tipo": "boolean",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Si es true, al cancelar una solicitud aprobada su importe vuelve al presupuesto del departamento"
+  }
+ ],
+ "codigo": "import json\nimport os\nimport re\nfrom decimal import Decimal, ROUND_HALF_UP\nfrom datetime import datetime\n\nPARAMS = {\n    \"tasa_iva\": 1.21,\n    \"marcador_iva_sumar\": \"+ IVA\",\n    \"marcador_iva_incluido\": \"(IVA incluido)\",\n    \"monedas_formato_anglosajon\": [\"USD\", \"GBP\"],\n    \"decimales_redondeo\": 2,\n    \"excepcion_seguridad_activa\": True,\n    \"categorias_excepcion_proveedor\": [\"seguridad\"],\n    \"excepcion_requiere_urgente\": True,\n    \"aprobador_excepcion_proveedor\": \"direccion\",\n    \"aprobador_sin_presupuesto\": \"finanzas\",\n    \"ventana_acumulado_dias\": 7,\n    \"umbral_auto\": 500,\n    \"umbral_jefe_departamento\": 5000,\n    \"categorias_revision_it\": [\"software\"],\n    \"estados_revision_it\": [\"aprobada\", \"escalada\"],\n    \"devolver_presupuesto_al_cancelar\": True,\n}\n\nif os.path.exists('params.json'):\n    with open('params.json', 'r', encoding='utf-8') as _f:\n        PARAMS.update(json.load(_f))\n\nCUANTO = Decimal(1).scaleb(-int(PARAMS[\"decimales_redondeo\"]))\n\n\ndef revision_it(categoria, estado):\n    return categoria in PARAMS[\"categorias_revision_it\"] and estado in PARAMS[\"estados_revision_it\"]\n\n\ndef parse_importe(texto, tipos_cambio):\n    \"\"\"Parsea un importe en formato texto y devuelve el valor en EUR con IVA\"\"\"\n    \n    # Detectar moneda\n    moneda = 'EUR'\n    for m in PARAMS[\"monedas_formato_anglosajon\"]:\n        if m in texto:\n            moneda = m\n            break\n    \n    # Detectar IVA\n    tiene_iva_suma = PARAMS[\"marcador_iva_sumar\"] in texto\n    tiene_iva_incluido = PARAMS[\"marcador_iva_incluido\"] in texto\n    \n    # Extraer el número\n    match = re.search(r'[0-9][0-9.,]*', texto)\n    if not match:\n        raise ValueError(f\"No se pudo extraer número de: {texto}\")\n    \n    numero_str = match.group()\n    \n    # Parsear según moneda\n    if moneda in PARAMS[\"monedas_formato_anglosajon\"]:\n        # Formato anglosajón: eliminar comas, punto es decimal\n        valor_str = numero_str.replace(',', '')\n        valor = Decimal(valor_str)\n    else:  # EUR\n        # Si contiene coma, es formato español\n        if ',' in numero_str:\n            valor_str = numero_str.replace('.', '').replace(',', '.')\n        else:\n            valor_str = numero_str\n        valor = Decimal(valor_str)\n    \n    # Convertir a EUR\n    tipo = Decimal(str(tipos_cambio[moneda]))\n    eur = (valor * tipo).quantize(CUANTO, rounding=ROUND_HALF_UP)\n    \n    # Aplicar IVA\n    if tiene_iva_suma:\n        importe = (eur * Decimal(str(PARAMS[\"tasa_iva\"]))).quantize(CUANTO, rounding=ROUND_HALF_UP)\n    elif tiene_iva_incluido:\n        importe = eur\n    else:\n        raise ValueError(f\"No se detectó IVA en: {texto}\")\n    \n    return importe\n\n# Cargar datos\nwith open('entradas.json', 'r', encoding='utf-8') as f:\n    data = json.load(f)\n\nproveedores_homologados = set(data['proveedores_homologados'])\ntipos_cambio = data['tipos_cambio']\npresupuesto_inicial = {k: Decimal(str(v)) for k, v in data['presupuesto_inicial'].items()}\nentradas = data['entradas']\n\n# Copiar presupuesto restante\npresupuesto_restante = {k: Decimal(str(v)) for k, v in presupuesto_inicial.items()}\n\n# Parsear importes y guardar info\ninfo_solicitud = {}\nfor entrada in entradas:\n    if entrada['tipo'] == 'solicitud':\n        importe = parse_importe(entrada['importe'], tipos_cambio)\n        info_solicitud[entrada['id']] = {\n            'departamento': entrada['departamento'],\n            'proveedor': entrada['proveedor'],\n            'fecha': datetime.strptime(entrada['fecha'], '%Y-%m-%d').date(),\n            'importe': importe,\n            'categoria': entrada['categoria'],\n            'urgente': entrada['urgente']\n        }\n\n# Ordenar entradas por (fecha, id)\nentradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))\n\n# Procesar entradas\ndecisiones = {}\n\numbral_auto = Decimal(str(PARAMS[\"umbral_auto\"]))\numbral_jefe = Decimal(str(PARAMS[\"umbral_jefe_departamento\"]))\nventana = int(PARAMS[\"ventana_acumulado_dias\"])\n\nfor entrada in entradas_ordenadas:\n    if entrada['tipo'] == 'solicitud':\n        id_sol = entrada['id']\n        info = info_solicitud[id_sol]\n        depto = info['departamento']\n        proveedor = info['proveedor']\n        fecha = info['fecha']\n        importe = info['importe']\n        categoria = info['categoria']\n        urgente = info['urgente']\n        \n        # REGLA 1: Proveedor no homologado\n        if proveedor not in proveedores_homologados:\n            aplica_excepcion = (\n                PARAMS[\"excepcion_seguridad_activa\"]\n                and categoria in PARAMS[\"categorias_excepcion_proveedor\"]\n                and (urgente or not PARAMS[\"excepcion_requiere_urgente\"])\n            )\n            if aplica_excepcion:\n                decisiones[id_sol] = {\n                    'estado': 'escalada',\n                    'aprobador': PARAMS[\"aprobador_excepcion_proveedor\"],\n                    'motivo': 'excepcion_seguridad',\n                    'revision_it': revision_it(categoria, 'escalada')\n                }\n            else:\n                decisiones[id_sol] = {\n                    'estado': 'rechazada',\n                    'aprobador': None,\n                    'motivo': 'proveedor_no_homologado',\n                    'revision_it': revision_it(categoria, 'rechazada')\n                }\n        # REGLA 2: Presupuesto insuficiente\n        elif importe > presupuesto_restante[depto]:\n            decisiones[id_sol] = {\n                'estado': 'escalada',\n                'aprobador': PARAMS[\"aprobador_sin_presupuesto\"],\n                'motivo': 'sin_presupuesto',\n                'revision_it': revision_it(categoria, 'escalada')\n            }\n        # REGLA 3: Aprobada\n        else:\n            # Calcular acumulado: esta solicitud + aprobadas del mismo proveedor/depto en la ventana de días\n            acumulado = importe\n            for id_prev in decisiones:\n                prev = decisiones[id_prev]\n                if prev['estado'] == 'aprobada':\n                    prev_info = info_solicitud[id_prev]\n                    if (prev_info['proveedor'] == proveedor and \n                        prev_info['departamento'] == depto):\n                        dias_diff = (fecha - prev_info['fecha']).days\n                        if 0 <= dias_diff <= ventana:\n                            acumulado += prev_info['importe']\n            \n            # Determinar aprobador según acumulado\n            if acumulado <= umbral_auto:\n                aprobador = 'auto'\n            elif acumulado <= umbral_jefe:\n                aprobador = 'jefe_departamento'\n            else:\n                aprobador = 'direccion'\n            \n            decisiones[id_sol] = {\n                'estado': 'aprobada',\n                'aprobador': aprobador,\n                'motivo': None,\n                'revision_it': revision_it(categoria, 'aprobada')\n            }\n            \n            # Descontar presupuesto\n            presupuesto_restante[depto] -= importe\n    \n    elif entrada['tipo'] == 'cancelacion':\n        ref = entrada['referencia']\n        if ref in decisiones:\n            if decisiones[ref]['estado'] == 'aprobada' and PARAMS[\"devolver_presupuesto_al_cancelar\"]:\n                # Devolver importe si estaba aprobada\n                presupuesto_restante[info_solicitud[ref]['departamento']] += info_solicitud[ref]['importe']\n            \n            # Actualizar estado de la solicitud cancelada\n            decisiones[ref] = {\n                'estado': 'cancelada',\n                'aprobador': None,\n                'motivo': 'cancelada_por_solicitante',\n                'revision_it': False\n            }\n\n# Construir salida\nsalida = {\n    'decisiones': decisiones,\n    'presupuesto_final': {\n        k: float(v.quantize(CUANTO, rounding=ROUND_HALF_UP))\n        for k, v in presupuesto_restante.items()\n    }\n}\n\nprint(json.dumps(salida, ensure_ascii=False, indent=2))\n",
+ "coste_parametrizacion": 0.147544,
+ "intentos": [
+  {
+   "intento": 1,
+   "coste_usd": 0.147544,
+   "gate": true,
+   "paridad": "35/35",
+   "parametros": [
+    "tasa_iva",
+    "marcador_iva_sumar",
+    "marcador_iva_incluido",
+    "monedas_formato_anglosajon",
+    "decimales_redondeo",
+    "excepcion_seguridad_activa",
+    "categorias_excepcion_proveedor",
+    "excepcion_requiere_urgente",
+    "aprobador_excepcion_proveedor",
+    "aprobador_sin_presupuesto",
+    "ventana_acumulado_dias",
+    "umbral_auto",
+    "umbral_jefe_departamento",
+    "categorias_revision_it",
+    "estados_revision_it",
+    "devolver_presupuesto_al_cancelar"
+   ]
+  }
+ ],
+ "linea_base": {
+  "control": 35,
+  "ok": 35,
+  "deriva_vs_grabado": 0
+ },
+ "sha256": {
+  "script": "6bf59226cfd33f05aed69c84816f70d3378e68a6d552fbe62b9b1c9002acdfc4",
+  "bloque": "5d637c2c09ae887a6bdf2c69fdd300b1f535295b800c1bb42c545109fac45aff"
+ }
+}

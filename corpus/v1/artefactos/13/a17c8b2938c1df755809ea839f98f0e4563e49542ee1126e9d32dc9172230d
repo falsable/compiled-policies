@@ -1,0 +1,94 @@
+import pandas as pd
+import numpy as np
+import json
+import itertools
+
+def parse_numeric(val):
+    if pd.isna(val):
+        return np.nan
+    val_str = str(val).strip()
+    if val_str == '':
+        return np.nan
+    val_str = val_str.replace(',', '.')
+    try:
+        return float(val_str)
+    except ValueError:
+        return np.nan
+
+# Cargar el CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=True)
+
+# Strip y convertir vacías en NaN
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col] = df[col].str.strip()
+        df[col] = df[col].replace('', np.nan)
+
+# Deduplicar por id (mantener primera aparición)
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Convertir columnas numéricas (reemplazar coma por punto)
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+for col in numeric_cols:
+    df[col] = df[col].apply(parse_numeric)
+
+# Seleccionar columnas elegibles (fracción de NaN <= 0.20)
+total_rows = len(df)
+eligible_cols = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / total_rows
+    if frac_na <= 0.20:
+        eligible_cols.append(col)
+
+# Calcular correlaciones de Pearson entre pares de columnas elegibles
+max_corr = -1
+best_pair = None
+
+for col_a, col_b in itertools.combinations(eligible_cols, 2):
+    mask = df[col_a].notna() & df[col_b].notna()
+    n_valid = mask.sum()
+    
+    if n_valid < 3:
+        continue
+    
+    corr = df.loc[mask, col_a].corr(df.loc[mask, col_b])
+    
+    if pd.notna(corr):
+        abs_corr = abs(corr)
+        if abs_corr > max_corr:
+            max_corr = abs_corr
+            best_pair = tuple(sorted([col_a, col_b]))
+
+# Detectar anomalías por región
+anomalous_ids = set()
+regions = df['region'].dropna().unique()
+
+for region in regions:
+    region_df = df[df['region'] == region]
+    
+    for col in numeric_cols:
+        values = region_df[col].dropna()
+        
+        if len(values) == 0:
+            continue
+        
+        median = values.median()
+        mad = (values - median).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        threshold = 4.5 * 1.4826 * mad
+        
+        deviations = (region_df[col] - median).abs()
+        anomaly_mask = deviations > threshold
+        
+        anomalous_ids.update(region_df.loc[anomaly_mask, 'id'].tolist())
+
+# Emitir resultado JSON
+result = {
+    'par': list(best_pair) if best_pair else [],
+    'anomalias': sorted(list(anomalous_ids))
+}
+
+print(json.dumps(result))

@@ -1,0 +1,185 @@
+```python
+import json
+import re
+from datetime import datetime
+
+# Cargar datos
+with open('entradas.json', 'r') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = data['tipos_cambio']
+presupuesto = {dep: float(val) for dep, val in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+def parse_importe(texto, tipos_cambio):
+    # Detectar divisa
+    texto_upper = texto.upper()
+    if 'USD' in texto_upper:
+        divisa = 'USD'
+    elif 'GBP' in texto_upper:
+        divisa = 'GBP'
+    else:  # EUR o €
+        divisa = 'EUR'
+    
+    # Detectar IVA
+    tiene_iva = '+ IVA' in texto
+    
+    # Extraer número
+    match = re.search(r'[\d.,]+', texto)
+    if not match:
+        raise ValueError(f"No se puede parsear: {texto}")
+    
+    num_str = match.group()
+    
+    # Normalizar número según divisa
+    if divisa == 'EUR':
+        # EUR puede ser formato español (1.234,56) o plano (1234.56)
+        if ',' in num_str:
+            # Formato español: quitar . y cambiar , por .
+            num_str = num_str.replace('.', '').replace(',', '.')
+    else:  # USD o GBP
+        # Formato anglosajón: quitar ,
+        num_str = num_str.replace(',', '')
+    
+    importe = float(num_str)
+    
+    # Convertir a EUR
+    eur = round(importe * tipos_cambio[divisa], 2)
+    
+    # Aplicar IVA si es necesario
+    if tiene_iva:
+        total = round(eur * 1.21, 2)
+    else:
+        total = eur
+    
+    return total
+
+# Ordenar entradas por (fecha, id)
+entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Procesar solicitudes
+registro = {}
+decisiones = {}
+
+for entrada in entradas_ordenadas:
+    if entrada['tipo'] == 'solicitud':
+        id_sol = entrada['id']
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        fecha = datetime.fromisoformat(entrada['fecha']).date()
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        
+        # Calcular total
+        total = parse_importe(entrada['importe'], tipos_cambio)
+        
+        # Inicializar
+        estado = None
+        aprobador = None
+        motivo = None
+        revision_it = False
+        
+        # REGLA 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        else:
+            # REGLA 2: Sin presupuesto
+            if total > presupuesto[departamento]:
+                estado = 'escalada'
+                aprobador = 'finanzas'
+                motivo = 'sin_presupuesto'
+            else:
+                # REGLA 3: Aprobada
+                estado = 'aprobada'
+                motivo = None
+                
+                # Calcular acumulado: esta solicitud + solicitudes aprobadas del mismo proveedor y departamento en los últimos 7 días
+                acumulado = total
+                for id_prev, reg_prev in registro.items():
+                    if (reg_prev['estado'] == 'aprobada' and 
+                        reg_prev['proveedor'] == proveedor and
+                        reg_prev['departamento'] == departamento):
+                        diff_days = (fecha - reg_prev['fecha']).days
+                        if 0 <= diff_days <= 7:
+                            acumulado += reg_prev['total']
+                
+                # Determinar aprobador según acumulado
+                if acumulado <= 750:
+                    aprobador = 'auto'
+                elif acumulado <= 4000:
+                    aprobador = 'jefe_departamento'
+                else:
+                    aprobador = 'direccion'
+                
+                # Restar del presupuesto
+                presupuesto[departamento] = round(presupuesto[departamento] - total, 2)
+        
+        # REGLA 4: revision_it
+        if categoria == 'software' and estado in ('aprobada', 'escalada'):
+            revision_it = True
+        
+        # Guardar en registro
+        registro[id_sol] = {
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'fecha': fecha,
+            'total': total,
+            'categoria': categoria,
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+        
+        # Guardar en decisiones
+        decisiones[id_sol] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+    
+    elif entrada['tipo'] == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        if referencia in registro:
+            reg = registro[referencia]
+            
+            # Si estaba aprobada, devolver el presupuesto
+            if reg['estado'] == 'aprobada':
+                presupuesto[reg['departamento']] = round(presupuesto[reg['departamento']] + reg['total'], 2)
+            
+            # Actualizar la solicitud
+            reg['estado'] = 'cancelada'
+            reg['aprobador'] = None
+            reg['motivo'] = 'cancelada_por_solicitante'
+            reg['revision_it'] = False
+            
+            # Actualizar decisiones
+            decisiones[referencia] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False
+            }
+
+# Redondear presupuestos finales
+presupuesto_final = {dep: round(val, 2) for dep, val in presupuesto.items()}
+
+# Construir salida
+salida = {
+    'decisiones': decisiones,
+    'presupuesto_final': presupuesto_final
+}
+
+# Imprimir JSON
+print(json.dumps(salida, ensure_ascii=False, indent=2))
+```

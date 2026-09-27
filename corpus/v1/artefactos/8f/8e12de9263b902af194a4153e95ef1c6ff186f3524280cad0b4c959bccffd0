@@ -1,0 +1,98 @@
+import pandas as pd
+import numpy as np
+import json
+import itertools
+
+# Load CSV as text
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Apply strip to all cells
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# Convert empty strings to NaN
+df = df.replace('', np.nan)
+
+# Deduplicate by id (keep first)
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Convert numeric columns
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+for col in numeric_cols:
+    # Replace comma with dot and convert to float
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Select eligible columns (<=20% missing)
+eligible_cols = []
+for col in numeric_cols:
+    frac = df[col].isna().mean()
+    if frac <= 0.20:
+        eligible_cols.append(col)
+
+# Calculate Pearson correlations
+best_pair = None
+best_r = -1
+
+for col_a, col_b in itertools.combinations(sorted(eligible_cols), 2):
+    mask = df[col_a].notna() & df[col_b].notna()
+    n_common = mask.sum()
+    
+    if n_common < 3:
+        continue
+    
+    a_vals = df.loc[mask, col_a].values
+    b_vals = df.loc[mask, col_b].values
+    
+    # Check for zero variance
+    if np.var(a_vals) == 0 or np.var(b_vals) == 0:
+        continue
+    
+    r = np.corrcoef(a_vals, b_vals)[0, 1]
+    
+    if np.isnan(r):
+        continue
+    
+    abs_r = abs(r)
+    
+    if abs_r > best_r:
+        best_r = abs_r
+        best_pair = (col_a, col_b)
+
+# Calculate medians and MAD by region
+anomalous_ids = set()
+
+for region, group in df.groupby('region', dropna=False):
+    for col in numeric_cols:
+        values = group[col].dropna().values
+        
+        if len(values) == 0:
+            continue
+        
+        med = np.median(values)
+        mad = np.median(np.abs(values - med))
+        escala = 1.4826 * mad
+        
+        if escala == 0:
+            continue
+        
+        threshold = 4.5 * escala
+        
+        for idx, row in group.iterrows():
+            val = row[col]
+            if pd.isna(val):
+                continue
+            
+            if abs(val - med) > threshold:
+                anomalous_ids.add(row['id'])
+
+anomalous_ids = sorted(list(anomalous_ids))
+
+# Build and print result
+result = {
+    'par': sorted(list(best_pair)),
+    'anomalias': anomalous_ids
+}
+
+print(json.dumps(result, ensure_ascii=False))

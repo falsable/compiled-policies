@@ -1,0 +1,44 @@
+{
+  "objetivo": "Leer entradas.json, procesar las entradas en orden (fecha y, a igual fecha, id alfabético) aplicando la política de compras, e imprimir un JSON {\"decisiones\": {id_solicitud: {\"estado\", \"aprobador\", \"motivo\", \"revision_it\"}}, \"presupuesto_final\": {departamento: euros}}. Solo las solicitudes aparecen en decisiones; las cancelaciones no. Todos los importes se redondean a 2 decimales.",
+  "criterios": [
+    "ORDEN: ordenar todas las entradas (solicitudes y cancelaciones juntas) por la clave (fecha, id). Las fechas ISO 'YYYY-MM-DD' se comparan como cadenas o como date. Los ids se comparan como cadenas: 'CX-...' < 'SC-...' y 'SC-112-04' < 'SC-112-09'.",
+    "PARSEO DEL IMPORTE: extraer el número y la moneda. Los símbolos '€' y 'EUR' significan EUR. 'USD' significa USD. 'GBP' significa GBP. Detectar el sufijo '+ IVA' o '(IVA incluido)'.",
+    "FORMATO NUMÉRICO EUR: si el número contiene ',', es formato español: quitar todos los '.' y cambiar ',' por '.' ('2.965,70' → 2965.70, '719,82' → 719.82, '2.700,54' → 2700.54). Si no contiene ',', es formato plano ('300.51' → 300.51).",
+    "FORMATO NUMÉRICO USD/GBP: es formato anglosajón. Quitar las ',' ('3,924.87' → 3924.87, '3,005.10' → 3005.10).",
+    "CONVERSIÓN: eur = round(importe × tipos_cambio[moneda], 2). Con '+ IVA', total = round(eur × 1.21, 2), un redondeo tras cada paso. Con '(IVA incluido)', total = eur. Usar Decimal con ROUND_HALF_UP para evitar errores de coma flotante.",
+    "REGLA 1: si el proveedor no está en proveedores_homologados (comparación exacta de cadena), la solicitud queda rechazada: estado 'rechazada', aprobador null, motivo 'proveedor_no_homologado'. Excepción: si categoria=='seguridad' y urgente==true, queda escalada: estado 'escalada', aprobador 'direccion', motivo 'excepcion_seguridad'. En ambos casos no se toca el presupuesto y se pasa a la regla 4.",
+    "REGLA 2: si total > presupuesto restante del departamento (comparación estricta; si es igual, se aprueba), la solicitud queda escalada: estado 'escalada', aprobador 'finanzas', motivo 'sin_presupuesto'. No se descuenta nada. La regla usa solo el importe de esta solicitud, no el acumulado.",
+    "REGLA 3: en otro caso, estado 'aprobada', motivo null, y presupuesto[dep] = round(presupuesto[dep] − total, 2). Calcular acumulado = total + la suma de los totales de las solicitudes ya procesadas que cumplan todo lo siguiente: estado actual 'aprobada' (las canceladas no cuentan), mismo proveedor, mismo departamento y 0 ≤ (fecha_actual − fecha_previa).days ≤ 7. Aprobador: acumulado ≤ 500 → 'auto'; ≤ 5000 → 'jefe_departamento'; > 5000 → 'direccion'.",
+    "REGLA 4: revision_it = true si categoria=='software' y el estado es 'aprobada' o 'escalada'. En cualquier otro caso, false. Las rechazadas tienen revision_it false.",
+    "CANCELACIÓN: la solicitud con id == referencia pasa a estado 'cancelada', aprobador null, motivo 'cancelada_por_solicitante' y revision_it false. Su importe NO se devuelve al presupuesto. Desde ese momento deja de contar para acumulados posteriores. Su efecto es solo desde su posición en el orden: no altera decisiones ya tomadas de otras solicitudes.",
+    "presupuesto_final: el presupuesto restante de cada departamento tras procesar todo, como float con 2 decimales. Incluye todos los departamentos de presupuesto_inicial."
+  ],
+  "pasos": [
+    {"n": 1, "accion": "Cargar datos", "detalle": "Leer entradas.json. Guardar homologados como set. Guardar tipos_cambio como Decimal (Decimal(str(x))). Inicializar presupuesto = {dep: Decimal(str(v))} a partir de presupuesto_inicial."},
+    {"n": 2, "accion": "Ordenar entradas", "detalle": "Ordenar con sorted(entradas, key=lambda e: (e['fecha'], e['id']))."},
+    {"n": 3, "accion": "Implementar parse_importe(texto)", "detalle": "Buscar la moneda con 'USD' in texto, 'GBP' in texto, o bien '€'/'EUR'. Detectar el IVA con '+ IVA' o 'IVA incluido'. Extraer el número con la regex r'[\\d.,]+'. Normalizar según la moneda, como indican los criterios. Convertir y redondear con quantize(Decimal('0.01'), ROUND_HALF_UP). Si hay '+ IVA', multiplicar por Decimal('1.21') y volver a redondear."},
+    {"n": 4, "accion": "Procesar en bucle", "detalle": "Para cada entrada ordenada: si es una solicitud, calcular total y aplicar las reglas 1→2→3 (la primera que aplique) y luego la regla 4. Guardar en un dict registro[id] = {estado, aprobador, motivo, revision_it, total, fecha, proveedor, departamento}. Si es una cancelación, modificar registro[referencia] como dicen los criterios. Si la referencia aún no existe, guardarla en un set de cancelaciones pendientes y aplicarla cuando llegue la solicitud (en estos datos no ocurre)."},
+    {"n": 5, "accion": "Calcular acumulado en la regla 3", "detalle": "Recorrer registro.values() filtrando estado=='aprobada', mismo proveedor y departamento, y 0 ≤ (date(fecha_act) − date(fecha_prev)).days ≤ 7. Sumar esos totales al total actual."},
+    {"n": 6, "accion": "Construir la salida", "detalle": "decisiones = {id: {estado, aprobador, motivo, revision_it}} solo para las solicitudes. presupuesto_final = {dep: float(valor)}. Imprimir con json.dumps(..., ensure_ascii=False, indent=2)."}
+  ],
+  "verificacion": [
+    "decisiones tiene exactamente 16 claves, todas SC-112-00..15. No hay ninguna clave CX-.",
+    "Totales en EUR esperados: SC-10=161.96, SC-04=719.82, SC-09=2700.54, SC-13=158.78, SC-01=904.08, SC-08=194.94, SC-06=4369.16, SC-00=565.75, SC-03=117.55, SC-11=400.60, SC-14=289.19, SC-15=292.22, SC-05=2965.70.",
+    "Decisiones esperadas: SC-10 aprobada/auto; SC-04 aprobada/jefe_departamento; SC-09 aprobada/jefe_departamento; SC-13 aprobada/auto/revision_it=true; SC-01 aprobada/jefe_departamento (acumulado 1066.04 con SC-10); SC-02 rechazada/null/proveedor_no_homologado; SC-08 aprobada/auto; SC-07 escalada/direccion/excepcion_seguridad; SC-06 escalada/finanzas/sin_presupuesto/revision_it=true (4369.16 > 2979.64); SC-00 aprobada/jefe_departamento; SC-03 aprobada/auto; SC-11 aprobada/auto; SC-14 cancelada; SC-15 aprobada/jefe_departamento (acumulado 581.41 con SC-14, que aún no estaba cancelada); SC-05 cancelada; SC-12 rechazada/proveedor_no_homologado.",
+    "presupuesto_final esperado: marketing=3421.81, operaciones=2398.23, it=4875.47, rrhh=3833.36. Los importes de las solicitudes canceladas NO se devuelven.",
+    "Toda solicitud rechazada o cancelada tiene revision_it=false. Toda aprobada tiene motivo=null. Toda rechazada o cancelada tiene aprobador=null.",
+    "Ningún presupuesto es negativo."
+  ],
+  "riesgos": [
+    "No ordenar el lote, o ordenar solo por fecha, sin desempatar por id.",
+    "Parsear mal '2.965,70' tratándolo como 2.96570, o quitar ',' en EUR formato español.",
+    "Redondear solo al final, en vez de redondear tras la conversión y otra vez tras el IVA. Usar float sin Decimal (por ejemplo 483.55×1.17=565.7535 o 117.5515).",
+    "Devolver al presupuesto el importe de una solicitud cancelada (SC-05, SC-14).",
+    "Aplicar las cancelaciones antes de tiempo. SC-14 se cancela el 09-19, así que SC-15 (09-16) sí lo incluye en su acumulado → jefe_departamento, no auto.",
+    "Usar el acumulado en la regla 2: debe usarse solo el importe individual.",
+    "Incluir en el acumulado solicitudes escaladas, rechazadas o de otro departamento o proveedor.",
+    "Aplicar la excepción de seguridad sin exigir urgente=true (SC-02 y SC-12 no son urgentes → rechazadas).",
+    "Marcar revision_it=true en solicitudes software rechazadas o canceladas.",
+    "Incluir las cancelaciones en decisiones, o imprimir Decimal sin convertirlo a float."
+  ]
+}

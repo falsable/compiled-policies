@@ -1,0 +1,202 @@
+import json
+import re
+from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
+
+def q(d):
+    """Quantize a Decimal to 2 decimal places using ROUND_HALF_UP"""
+    return d.quantize(Decimal('0.01'), ROUND_HALF_UP)
+
+def parse_importe(texto, tipos_cambio):
+    """
+    Parse import text like "333.38 € + IVA" or "1,382,900.00 USD + IVA"
+    Returns a Decimal with EUR and IVA applied
+    """
+    # Extract number and currency
+    match = re.search(r'^[\s]*([0-9.,]+)\s*(€|EUR|USD|GBP)', texto)
+    if not match:
+        raise ValueError(f"Cannot parse amount: {texto}")
+    
+    num_str = match.group(1)
+    moneda_orig = match.group(2)
+    
+    # Map € to EUR
+    moneda = 'EUR' if moneda_orig == '€' else moneda_orig
+    
+    # Normalize number based on currency and format
+    if moneda == 'EUR':
+        # EUR can be Spanish format (has comma) or plain
+        if ',' in num_str:
+            # Spanish format: remove . and replace , with .
+            num_normalized = num_str.replace('.', '').replace(',', '.')
+        else:
+            # Plain format
+            num_normalized = num_str
+    else:
+        # USD/GBP is always Anglo-Saxon format: remove commas
+        num_normalized = num_str.replace(',', '')
+    
+    # Convert to EUR
+    importe = Decimal(num_normalized)
+    tipo = tipos_cambio[moneda]
+    eur = q(importe * tipo)
+    
+    # Apply IVA
+    if '+ IVA' in texto:
+        final = q(eur * Decimal('1.21'))
+    elif '(IVA incluido)' in texto:
+        final = eur
+    else:
+        raise ValueError(f"Cannot determine IVA status: {texto}")
+    
+    return final
+
+def main():
+    # Load data
+    with open('entradas.json', 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    proveedores_homologados = set(data['proveedores_homologados'])
+    tipos_cambio = {k: Decimal(str(v)) for k, v in data['tipos_cambio'].items()}
+    presupuesto = {k: Decimal(str(v)) for k, v in data['presupuesto_inicial'].items()}
+    entradas = data['entradas']
+    
+    # Sort entries by (fecha, id)
+    entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+    
+    # Process entries
+    decisiones = {}
+    registro = {}
+    
+    for entrada in entradas_ordenadas:
+        if entrada['tipo'] == 'solicitud':
+            id_sol = entrada['id']
+            fecha = entrada['fecha']
+            departamento = entrada['departamento']
+            proveedor = entrada['proveedor']
+            categoria = entrada['categoria']
+            urgente = entrada['urgente']
+            importe_str = entrada['importe']
+            
+            # Parse amount
+            importe_eur = parse_importe(importe_str, tipos_cambio)
+            
+            # Apply rules
+            estado = None
+            aprobador = None
+            motivo = None
+            revision_it = False
+            
+            # Rule 1: Check if provider is homologated
+            if proveedor not in proveedores_homologados:
+                if categoria == 'seguridad' and urgente:
+                    estado = 'escalada'
+                    aprobador = 'direccion'
+                    motivo = 'excepcion_seguridad'
+                else:
+                    estado = 'rechazada'
+                    aprobador = None
+                    motivo = 'proveedor_no_homologado'
+            else:
+                # Provider is homologated
+                # Rule 2: Check budget
+                if importe_eur > presupuesto[departamento]:
+                    estado = 'escalada'
+                    aprobador = 'finanzas'
+                    motivo = 'sin_presupuesto'
+                else:
+                    # Rule 3: Approved
+                    estado = 'aprobada'
+                    motivo = None
+                    
+                    # Calculate accumulated amount
+                    fecha_obj = date.fromisoformat(fecha)
+                    acumulado = importe_eur
+                    
+                    for id_prev, reg_prev in registro.items():
+                        if reg_prev['estado'] == 'aprobada' and \
+                           reg_prev['proveedor'] == proveedor and \
+                           reg_prev['departamento'] == departamento:
+                            fecha_prev = date.fromisoformat(reg_prev['fecha'])
+                            dias = (fecha_obj - fecha_prev).days
+                            if 0 <= dias <= 7:
+                                acumulado += reg_prev['importe']
+                    
+                    # Determine approver
+                    if acumulado <= 500:
+                        aprobador = 'auto'
+                    elif acumulado <= 5000:
+                        aprobador = 'jefe_departamento'
+                    else:
+                        aprobador = 'direccion'
+                    
+                    # Deduct from budget
+                    presupuesto[departamento] = q(presupuesto[departamento] - importe_eur)
+            
+            # Rule 4: revision_it
+            if categoria == 'software' and (estado == 'aprobada' or estado == 'escalada'):
+                revision_it = True
+            
+            # Store in registro
+            registro[id_sol] = {
+                'fecha': fecha,
+                'departamento': departamento,
+                'proveedor': proveedor,
+                'importe': importe_eur,
+                'estado': estado,
+                'aprobador': aprobador,
+                'motivo': motivo,
+                'revision_it': revision_it
+            }
+            
+            # Add to decisiones
+            decisiones[id_sol] = {
+                'estado': estado,
+                'aprobador': aprobador,
+                'motivo': motivo,
+                'revision_it': revision_it
+            }
+        
+        elif entrada['tipo'] == 'cancelacion':
+            referencia = entrada['referencia']
+            
+            if referencia in registro:
+                reg = registro[referencia]
+                
+                # Return budget if was approved
+                if reg['estado'] == 'aprobada':
+                    presupuesto[reg['departamento']] = q(presupuesto[reg['departamento']] + reg['importe'])
+                
+                # Update status
+                reg['estado'] = 'cancelada'
+                reg['aprobador'] = None
+                reg['motivo'] = 'cancelada_por_solicitante'
+                reg['revision_it'] = False
+                
+                # Update decisiones
+                decisiones[referencia] = {
+                    'estado': 'cancelada',
+                    'aprobador': None,
+                    'motivo': 'cancelada_por_solicitante',
+                    'revision_it': False
+                }
+    
+    # Filter decisiones to only include SC- entries
+    decisiones_final = {}
+    for id_sol in sorted(decisiones.keys()):
+        if id_sol.startswith('SC-'):
+            decisiones_final[id_sol] = decisiones[id_sol]
+    
+    # Convert presupuesto to final format
+    presupuesto_final = {dep: float(q(presupuesto[dep])) for dep in sorted(presupuesto.keys())}
+    
+    # Output
+    output = {
+        'decisiones': decisiones_final,
+        'presupuesto_final': presupuesto_final
+    }
+    
+    print(json.dumps(output, ensure_ascii=False, indent=2))
+
+if __name__ == '__main__':
+    main()

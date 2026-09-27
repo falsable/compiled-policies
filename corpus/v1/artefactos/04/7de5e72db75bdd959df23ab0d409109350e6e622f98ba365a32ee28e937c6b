@@ -1,0 +1,9 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.02,
+  "diferencia": "La Regla 0 es diferente: POLÍTICA A requiere quedarse con la PRIMERA aparición de IDs repetidos, mientras que POLÍTICA B requiere la ÚLTIMA. Un programa escrito para A aplicaría deduplicación diferente, lo que cambiaría qué filas se incluyen en los cálculos posteriores (correlación de Pearson, medianas, MAD, detección de anomalías). Esto produciría resultados distintos en cualquier CSV con IDs duplicados. Las Reglas 1 y 2 son idénticas en ambas políticas."
+}
+```
+
+**Nota:** La probabilidad 0.02 asume una pequeña posibilidad de que el CSV no contenga IDs repetidos, en cuyo caso la diferencia de regla 0 no impactaría. De otra forma, la probabilidad es 0.

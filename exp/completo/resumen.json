@@ -1,0 +1,157 @@
+{
+  "global": {
+    "pares_validos": 60,
+    "p_ok_plan_barato": 0.7166666666666667,
+    "p_ok_plan_caro": 0.9333333333333333,
+    "p_ok_sin_plan": 0.7333333333333333,
+    "delta": 0.2321428571428571,
+    "delta_ic95": [
+      0.1071428571428571,
+      0.3571428571428572
+    ],
+    "discordantes_barato_gana": 2,
+    "discordantes_caro_gana": 15,
+    "mcnemar_p": 0.002349853515625,
+    "brazos": {
+      "plan_barato": {
+        "n": 60,
+        "gate_ok": 1.0,
+        "p_ok": 0.7166666666666667,
+        "coste_medio_usd": 0.12508441666666667,
+        "coste_plan_usd": 0.034540916666666664,
+        "coste_ejec_usd": 0.09054349999999999,
+        "coste_total_por_tarea_usd": 0.6917510833333333
+      },
+      "plan_caro": {
+        "n": 60,
+        "gate_ok": 1.0,
+        "p_ok": 0.9333333333333333,
+        "coste_medio_usd": 0.2008592,
+        "coste_plan_usd": 0.10984338333333334,
+        "coste_ejec_usd": 0.09101581666666667,
+        "coste_total_por_tarea_usd": 0.33419253333333343
+      },
+      "sin_plan": {
+        "n": 60,
+        "gate_ok": 1.0,
+        "p_ok": 0.7333333333333333,
+        "coste_medio_usd": 0.08234233333333332,
+        "coste_plan_usd": 0.0,
+        "coste_ejec_usd": 0.08234233333333332,
+        "coste_total_por_tarea_usd": 0.6156756666666665
+      }
+    }
+  },
+  "datos": {
+    "pares_validos": 30,
+    "p_ok_plan_barato": 0.8333333333333334,
+    "p_ok_plan_caro": 0.9666666666666667,
+    "p_ok_sin_plan": 0.8666666666666667,
+    "delta": 0.13793103448275856,
+    "delta_ic95": [
+      0.0,
+      0.2857142857142858
+    ],
+    "discordantes_barato_gana": 1,
+    "discordantes_caro_gana": 5,
+    "mcnemar_p": 0.21875,
+    "brazos": {
+      "plan_barato": {
+        "n": 30,
+        "gate_ok": 1.0,
+        "p_ok": 0.8333333333333334,
+        "coste_medio_usd": 0.09126676666666667,
+        "coste_plan_usd": 0.0240459,
+        "coste_ejec_usd": 0.06722086666666668,
+        "coste_total_por_tarea_usd": 0.4246001
+      },
+      "plan_caro": {
+        "n": 30,
+        "gate_ok": 1.0,
+        "p_ok": 0.9666666666666667,
+        "coste_medio_usd": 0.13912480000000002,
+        "coste_plan_usd": 0.07234863333333334,
+        "coste_ejec_usd": 0.06677616666666666,
+        "coste_total_por_tarea_usd": 0.20579146666666667
+      },
+      "sin_plan": {
+        "n": 30,
+        "gate_ok": 1.0,
+        "p_ok": 0.8666666666666667,
+        "coste_medio_usd": 0.051074199999999986,
+        "coste_plan_usd": 0.0,
+        "coste_ejec_usd": 0.051074199999999986,
+        "coste_total_por_tarea_usd": 0.31774086666666673
+      }
+    }
+  },
+  "negocio": {
+    "pares_validos": 30,
+    "p_ok_plan_barato": 0.6,
+    "p_ok_plan_caro": 0.9,
+    "p_ok_sin_plan": 0.6,
+    "delta": 0.33333333333333337,
+    "delta_ic95": [
+      0.1200000000000001,
+      0.52
+    ],
+    "discordantes_barato_gana": 1,
+    "discordantes_caro_gana": 10,
+    "mcnemar_p": 0.01171875,
+    "brazos": {
+      "plan_barato": {
+        "n": 30,
+        "gate_ok": 1.0,
+        "p_ok": 0.6,
+        "coste_medio_usd": 0.15890206666666665,
+        "coste_plan_usd": 0.045035933333333326,
+        "coste_ejec_usd": 0.11386613333333333,
+        "coste_total_por_tarea_usd": 0.9589020666666667
+      },
+      "plan_caro": {
+        "n": 30,
+        "gate_ok": 1.0,
+        "p_ok": 0.9,
+        "coste_medio_usd": 0.2625935999999999,
+        "coste_plan_usd": 0.14733813333333334,
+        "coste_ejec_usd": 0.11525546666666668,
+        "coste_total_por_tarea_usd": 0.46259360000000005
+      },
+      "sin_plan": {
+        "n": 30,
+        "gate_ok": 1.0,
+        "p_ok": 0.6,
+        "coste_medio_usd": 0.11361046666666667,
+        "coste_plan_usd": 0.0,
+        "coste_ejec_usd": 0.11361046666666667,
+        "coste_total_por_tarea_usd": 0.9136104666666667
+      }
+    }
+  },
+  "ratio_coste_por_llamada_caro_barato": 3.1800946220786463,
+  "gasto_total_usd": 24.497157,
+  "router_por_dominio": {
+    "coste_total_por_dominio_y_brazo": {
+      "plan_barato": {
+        "datos": 0.4246,
+        "negocio": 0.9589
+      },
+      "plan_caro": {
+        "datos": 0.2058,
+        "negocio": 0.4626
+      },
+      "sin_plan": {
+        "datos": 0.3177,
+        "negocio": 0.9136
+      }
+    },
+    "mejor_politica_fija": "plan_caro",
+    "coste_mejor_fija": 0.3341925333333333,
+    "brazo_elegido_por_dominio": {
+      "datos": "plan_caro",
+      "negocio": "plan_caro"
+    },
+    "coste_router_por_dominio": 0.3341925333333333,
+    "ahorro_router_vs_fija_pct": 0.0
+  }
+}

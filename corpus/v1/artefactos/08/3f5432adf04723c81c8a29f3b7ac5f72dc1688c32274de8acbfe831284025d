@@ -1,0 +1,67 @@
+import pandas as pd
+import json
+import numpy as np
+
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=True, na_values=[''])
+
+df['id'] = df['id'].str.strip()
+df['region'] = df['region'].str.strip()
+
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+columnas_numericas = ['horas_extra', 'coste_envio', 'descuento', 'resenas', 'conversiones', 
+                      'devoluciones', 'tiempo_entrega', 'ventas', 'precio_medio', 
+                      'temperatura', 'visitas', 'humedad', 'averias']
+
+for col in columnas_numericas:
+    df[col] = df[col].str.strip().str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+frac_ausentes = df[columnas_numericas].isna().mean()
+elegibles = sorted([c for c in columnas_numericas if frac_ausentes[c] <= 0.20])
+
+corr_matrix = df[elegibles].corr(method='pearson')
+
+max_corr = -1
+best_pair = None
+
+for i, col1 in enumerate(elegibles):
+    for col2 in elegibles[i+1:]:
+        r = corr_matrix.loc[col1, col2]
+        if not np.isnan(r):
+            abs_r = abs(r)
+            if abs_r > max_corr:
+                max_corr = abs_r
+                best_pair = sorted([col1, col2])
+
+anomalias_indices = set()
+
+for region, grupo in df.groupby('region', dropna=False):
+    if pd.isna(region):
+        continue
+    
+    for col in columnas_numericas:
+        valores = grupo[col].dropna()
+        
+        if len(valores) == 0:
+            continue
+        
+        mediana = valores.median()
+        mad = (valores - mediana).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        umbral = 4.5 * 1.4826 * mad
+        
+        mask = grupo[col].notna() & ((grupo[col] - mediana).abs() > umbral)
+        anomalias_indices.update(grupo.index[mask])
+
+anomalias_ids = sorted(set(df.loc[list(anomalias_indices), 'id']))
+
+resultado = {
+    "par": best_pair,
+    "anomalias": anomalias_ids
+}
+
+print(json.dumps(resultado, ensure_ascii=False))

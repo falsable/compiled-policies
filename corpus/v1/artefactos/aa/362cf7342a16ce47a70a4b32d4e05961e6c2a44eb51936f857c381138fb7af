@@ -1,0 +1,110 @@
+```python
+import json
+import pandas as pd
+import numpy as np
+
+# 1. Cargar CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip a todas las celdas
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col] = df[col].str.strip()
+
+# 2. Deduplicar por id (mantener primera aparición)
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# 3. Detectar columnas numéricas
+numeric_cols = []
+
+for col in df.columns:
+    if col in ['id', 'region', 'comentario']:
+        continue
+    
+    # Convertir a string para operaciones
+    col_str = df[col].astype(str)
+    non_empty = col_str != ''
+    n_non_empty = non_empty.sum()
+    
+    if n_non_empty == 0:
+        continue
+    
+    # Normalizar coma a punto y convertir a numérico
+    normalized = col_str.str.replace(',', '.', regex=False)
+    numeric = pd.to_numeric(normalized, errors='coerce')
+    
+    # Contar conversiones exitosas entre los no vacíos
+    n_converted = numeric[non_empty].notna().sum()
+    pct_converted = n_converted / n_non_empty if n_non_empty > 0 else 0
+    
+    if pct_converted >= 0.90:
+        numeric_cols.append(col)
+        df[col] = numeric
+
+# 4. Seleccionar columnas elegibles (≤ 20% ausentes)
+eligible_cols = []
+for col in numeric_cols:
+    na_pct = df[col].isna().sum() / len(df)
+    if na_pct <= 0.20:
+        eligible_cols.append(col)
+
+# 5. Calcular correlación de Pearson (pairwise) y encontrar máximo |r|
+corr_matrix = df[eligible_cols].corr(method='pearson')
+
+best_pair = None
+best_corr_abs = -1
+
+for i in range(len(eligible_cols)):
+    for j in range(i + 1, len(eligible_cols)):
+        col_i = eligible_cols[i]
+        col_j = eligible_cols[j]
+        r = corr_matrix.loc[col_i, col_j]
+        
+        if pd.notna(r):
+            r_abs = abs(r)
+            if r_abs > best_corr_abs:
+                best_corr_abs = r_abs
+                best_pair = sorted([col_i, col_j])
+
+# 6. Detectar anomalías (Regla 2)
+anomalous_ids = set()
+
+for region in df['region'].unique():
+    region_mask = df['region'] == region
+    
+    for col in numeric_cols:
+        # Valores no ausentes en esta región para esta columna
+        region_values = df.loc[region_mask, col].dropna()
+        
+        if len(region_values) == 0:
+            continue
+        
+        # Calcular mediana y MAD
+        median = region_values.median()
+        mad = (region_values - median).abs().median()
+        
+        # Si MAD es 0, esta columna no marca anomalías en esta región
+        if mad == 0:
+            continue
+        
+        # Calcular umbral: 4.5 * MAD * 1.4826
+        scale = 1.4826 * mad
+        threshold = 4.5 * scale
+        
+        # Marcar anomalías: |valor - mediana| > umbral
+        for idx in df[region_mask].index:
+            val = df.loc[idx, col]
+            if pd.notna(val):
+                if abs(val - median) > threshold:
+                    anomalous_ids.add(df.loc[idx, 'id'])
+
+# 7. Construir resultado
+anomalous_ids = sorted(list(anomalous_ids))
+
+result = {
+    'par': best_pair,
+    'anomalias': anomalous_ids
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

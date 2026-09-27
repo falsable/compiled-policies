@@ -1,0 +1,175 @@
+```python
+import json
+import re
+import sys
+from datetime import datetime
+
+# Cargar datos
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = data['tipos_cambio']
+presupuesto = {k: float(v) for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+# Función para parsear el importe
+def parse_importe(texto):
+    """Parsea un importe en formato EUR/USD/GBP con o sin IVA."""
+    pattern = r'^\s*([\d.,]+)\s*(EUR|€|USD|GBP)\s*(\+\s*IVA|\(IVA incluido\))\s*$'
+    match = re.match(pattern, texto.strip())
+    if not match:
+        raise ValueError(f"No se puede parsear: {texto}")
+    
+    numero_str = match.group(1)
+    moneda = match.group(2)
+    sufijo = match.group(3)
+    
+    # Normalizar moneda
+    if moneda == '€':
+        moneda = 'EUR'
+    
+    # Parsear número según moneda
+    if moneda == 'EUR':
+        # Formato español (1.234,56) o plano (1234.56)
+        if ',' in numero_str:
+            numero_str = numero_str.replace('.', '').replace(',', '.')
+    else:  # USD o GBP
+        # Formato anglosajón (1,234.56)
+        numero_str = numero_str.replace(',', '')
+    
+    numero = float(numero_str)
+    
+    # Convertir a EUR
+    tipo = tipos_cambio[moneda]
+    eur = round(numero * tipo, 2)
+    
+    # Aplicar IVA
+    if '+ IVA' in sufijo:
+        importe = round(eur * 1.21, 2)
+    else:  # (IVA incluido)
+        importe = eur
+    
+    return importe
+
+# Ordenar entradas por (fecha, id)
+entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Procesar entradas
+decisiones = {}
+info = {}
+solicitudes_procesadas = []
+
+for entrada in entradas_ordenadas:
+    if entrada['tipo'] == 'solicitud':
+        solicitud_id = entrada['id']
+        fecha = datetime.strptime(entrada['fecha'], '%Y-%m-%d').date()
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe = parse_importe(entrada['importe'])
+        
+        # Guardar información
+        info[solicitud_id] = {
+            'fecha': fecha,
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'categoria': categoria,
+            'importe': importe
+        }
+        
+        # Inicializar decisión
+        estado = None
+        aprobador = None
+        motivo = None
+        revision_it = False
+        
+        # REGLA 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        else:
+            # REGLA 2: Importe > presupuesto disponible
+            if importe > presupuesto[departamento]:
+                estado = 'escalada'
+                aprobador = 'finanzas'
+                motivo = 'sin_presupuesto'
+            else:
+                # REGLA 3: Aprobada
+                estado = 'aprobada'
+                motivo = None
+                
+                # Calcular acumulado: esta solicitud + solicitudes aprobadas anteriores
+                # del mismo proveedor y departamento, dentro de 7 días
+                acumulado = importe
+                for prev_id in solicitudes_procesadas:
+                    prev_decision = decisiones[prev_id]
+                    if prev_decision['estado'] == 'aprobada':
+                        prev_info = info[prev_id]
+                        if (prev_info['proveedor'] == proveedor and 
+                            prev_info['departamento'] == departamento):
+                            diff_days = (fecha - prev_info['fecha']).days
+                            if 0 <= diff_days <= 7:
+                                acumulado += prev_info['importe']
+                
+                acumulado = round(acumulado, 2)
+                
+                # Determinar aprobador por acumulado
+                if acumulado <= 500:
+                    aprobador = 'auto'
+                elif acumulado <= 5000:
+                    aprobador = 'jefe_departamento'
+                else:
+                    aprobador = 'direccion'
+                
+                # Descontar del presupuesto
+                presupuesto[departamento] = round(presupuesto[departamento] - importe, 2)
+        
+        # REGLA 4: Revisión IT
+        if categoria == 'software' and estado in ('aprobada', 'escalada'):
+            revision_it = True
+        
+        # Guardar decisión
+        decisiones[solicitud_id] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+        solicitudes_procesadas.append(solicitud_id)
+    
+    elif entrada['tipo'] == 'cancelacion':
+        referencia = entrada['referencia']
+        if referencia in decisiones:
+            # Si estaba aprobada, devolver presupuesto
+            if decisiones[referencia]['estado'] == 'aprobada':
+                departamento = info[referencia]['departamento']
+                importe = info[referencia]['importe']
+                presupuesto[departamento] = round(presupuesto[departamento] + importe, 2)
+            
+            # Actualizar decisión de la solicitud
+            decisiones[referencia] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False
+            }
+        else:
+            print(f"Aviso: Cancelación {entrada['id']} referencia {referencia} no encontrada", file=sys.stderr)
+
+# Construir resultado
+resultado = {
+    'decisiones': decisiones,
+    'presupuesto_final': {dep: round(presupuesto[dep], 2) for dep in presupuesto}
+}
+
+# Imprimir por stdout
+print(json.dumps(resultado, ensure_ascii=False, indent=2))
+```

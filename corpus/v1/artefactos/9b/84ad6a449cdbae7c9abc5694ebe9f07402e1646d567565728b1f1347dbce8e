@@ -1,0 +1,171 @@
+```python
+import json
+import re
+from decimal import Decimal, ROUND_HALF_UP
+from datetime import datetime, timedelta
+
+# Load data
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = {k: Decimal(str(v)) for k, v in data['tipos_cambio'].items()}
+presupuesto = {k: Decimal(str(v)) for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+# Sort entries by (fecha, id)
+entradas_sorted = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Parse amount with currency
+def parse_importe(texto):
+    # Detect currency
+    if '€' in texto or 'EUR' in texto:
+        moneda = 'EUR'
+    elif 'USD' in texto:
+        moneda = 'USD'
+    elif 'GBP' in texto:
+        moneda = 'GBP'
+    else:
+        raise ValueError(f"No currency found in: {texto}")
+    
+    # Extract number
+    match = re.search(r'[\d.,]+', texto)
+    if not match:
+        raise ValueError(f"No number found in: {texto}")
+    
+    num_str = match.group()
+    
+    # Parse based on currency
+    if moneda == 'EUR':
+        # Spanish format if has comma, else plain
+        if ',' in num_str:
+            # Spanish: 1.411,11 → 1411.11
+            num_str = num_str.replace('.', '').replace(',', '.')
+    else:  # USD or GBP
+        # Anglo-Saxon format: remove commas
+        num_str = num_str.replace(',', '')
+    
+    amount = Decimal(num_str)
+    
+    # Convert to EUR
+    rate = tipos_cambio[moneda]
+    eur = (amount * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    # Apply IVA
+    if '+ IVA' in texto:
+        total = (eur * Decimal('1.21')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    elif '(IVA incluido)' in texto:
+        total = eur
+    else:
+        raise ValueError(f"No IVA specification in: {texto}")
+    
+    return total
+
+# Process entries
+estado_solicitudes = {}
+
+for entrada in entradas_sorted:
+    if entrada['tipo'] == 'solicitud':
+        id_sol = entrada['id']
+        fecha = entrada['fecha']
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe_texto = entrada['importe']
+        
+        # Parse amount
+        total = parse_importe(importe_texto)
+        
+        # Initialize
+        estado_solicitudes[id_sol] = {
+            'estado': None,
+            'aprobador': None,
+            'motivo': None,
+            'revision_it': False,
+            'total': total,
+            'fecha': fecha,
+            'proveedor': proveedor,
+            'departamento': departamento,
+            'categoria': categoria
+        }
+        
+        # Rule 1: Check if provider is homologized
+        if proveedor not in proveedores_homologados:
+            # Exception: seguridad + urgente
+            if categoria == 'seguridad' and urgente:
+                estado_solicitudes[id_sol]['estado'] = 'escalada'
+                estado_solicitudes[id_sol]['aprobador'] = 'direccion'
+                estado_solicitudes[id_sol]['motivo'] = 'excepcion_seguridad'
+            else:
+                estado_solicitudes[id_sol]['estado'] = 'rechazada'
+                estado_solicitudes[id_sol]['motivo'] = 'proveedor_no_homologado'
+        else:
+            # Rule 2: Check budget
+            if total > presupuesto[departamento]:
+                estado_solicitudes[id_sol]['estado'] = 'escalada'
+                estado_solicitudes[id_sol]['aprobador'] = 'finanzas'
+                estado_solicitudes[id_sol]['motivo'] = 'sin_presupuesto'
+            else:
+                # Rule 3: Approved
+                estado_solicitudes[id_sol]['estado'] = 'aprobada'
+                presupuesto[departamento] -= total
+                
+                # Calculate accumulated amount for approver
+                acumulado = total
+                fecha_curr = datetime.fromisoformat(fecha).date()
+                fecha_min = fecha_curr - timedelta(days=7)
+                
+                for id_prev, info_prev in estado_solicitudes.items():
+                    if id_prev != id_sol and info_prev['estado'] == 'aprobada':
+                        if (info_prev['proveedor'] == proveedor and 
+                            info_prev['departamento'] == departamento):
+                            fecha_prev = datetime.fromisoformat(info_prev['fecha']).date()
+                            if fecha_min <= fecha_prev <= fecha_curr:
+                                acumulado += info_prev['total']
+                
+                if acumulado <= Decimal('750'):
+                    estado_solicitudes[id_sol]['aprobador'] = 'auto'
+                elif acumulado <= Decimal('4000'):
+                    estado_solicitudes[id_sol]['aprobador'] = 'jefe_departamento'
+                else:
+                    estado_solicitudes[id_sol]['aprobador'] = 'direccion'
+        
+        # Rule 4: revision_it
+        if categoria == 'software' and estado_solicitudes[id_sol]['estado'] in ('aprobada', 'escalada'):
+            estado_solicitudes[id_sol]['revision_it'] = True
+    
+    elif entrada['tipo'] == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        if referencia in estado_solicitudes:
+            sol = estado_solicitudes[referencia]
+            # If was approved, return amount to budget
+            if sol['estado'] == 'aprobada':
+                presupuesto[sol['departamento']] += sol['total']
+            
+            # Mark as cancelled
+            sol['estado'] = 'cancelada'
+            sol['aprobador'] = None
+            sol['motivo'] = 'cancelada_por_solicitante'
+            sol['revision_it'] = False
+
+# Build output
+decisiones = {}
+for id_sol, info in estado_solicitudes.items():
+    decisiones[id_sol] = {
+        'estado': info['estado'],
+        'aprobador': info['aprobador'],
+        'motivo': info['motivo'],
+        'revision_it': info['revision_it']
+    }
+
+presupuesto_final = {k: float(v) for k, v in presupuesto.items()}
+
+output = {
+    'decisiones': decisiones,
+    'presupuesto_final': presupuesto_final
+}
+
+print(json.dumps(output, ensure_ascii=False, indent=2))
+```

@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.98,
+  "diferencia": "Solo diferencias de redacción. Ambas políticas especifican idénticos criterios y umbrales: (0) primera aparición de ids duplicados, celdas vacías como ausentes, números con coma decimal como números; (1) máximo 20% ausentes, par con correlación de Pearson más alta en valor absoluto; (2) umbral de 4.5 desviaciones robustas (MAD×1.4826) desde mediana dentro de región, sin anomalías si MAD=0."
+}
+```

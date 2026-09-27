@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Ambas políticas son idénticas en criterios y reglas. Las variaciones son solo redaccionales: POLÍTICA A dice 'quédate' vs POLÍTICA B 'conserva'; 'valores no ausentes' vs 'valor presente'; 'se aleja' vs 'dista'; 'como mucho un 20%' vs 'no pase del 20%'; 'calculada con las filas donde ambas columnas tienen valor' vs 'usando solo las filas en las que las dos columnas tienen dato'. Ninguna de estas es un cambio de umbral, porcentaje, categoría o regla. El resultado será idéntico para cualquier entrada."
+}
+```

@@ -1,0 +1,26 @@
+{
+  "params": {
+    "S": 4,
+    "R": 2,
+    "coste_barato": 0.01,
+    "ratio": 25.0,
+    "q": [
+      0.7,
+      0.85,
+      0.95
+    ],
+    "phi": [
+      0.5,
+      0.2,
+      0.0
+    ],
+    "kappa": 0.5,
+    "V": 2.0,
+    "d_min": 0.8,
+    "overhead_agente": 0.3,
+    "n_tareas": 2000,
+    "semilla": 7
+  },
+  "paridad_max_abs_z": 2.3656587884840525,
+  "optimalidad_margen_min": 0.0
+}

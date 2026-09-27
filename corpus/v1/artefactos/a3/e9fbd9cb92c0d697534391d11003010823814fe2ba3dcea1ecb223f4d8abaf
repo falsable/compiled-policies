@@ -1,0 +1,126 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Cargar el CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Recortar espacios en todas las celdas
+for col in df.columns:
+    df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+df.columns = df.columns.str.strip()
+
+# Deduplicar por id
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Detectar y convertir columnas numéricas
+def parse_numeric(s):
+    """Convierte string a float con manejo de coma decimal y separadores de miles."""
+    if not isinstance(s, str):
+        return np.nan
+    s = s.strip().replace(' ', '')
+    if s == '':
+        return np.nan
+    
+    num_points = s.count('.')
+    num_commas = s.count(',')
+    
+    if num_points > 0 and num_commas > 0:
+        last_point_idx = s.rfind('.')
+        last_comma_idx = s.rfind(',')
+        if last_comma_idx > last_point_idx:
+            # Coma es decimal, punto es separador de miles
+            s = s.replace('.', '').replace(',', '.')
+        else:
+            # Punto es decimal, coma es separador de miles
+            s = s.replace(',', '')
+    else:
+        if num_commas > 0:
+            s = s.replace(',', '.')
+    
+    try:
+        return float(s)
+    except:
+        return np.nan
+
+numeric_columns = []
+for col in df.columns:
+    if col in ['id', 'region', 'comentario']:
+        continue
+    
+    converted = df[col].apply(parse_numeric)
+    non_empty = (df[col] != '').sum()
+    converted_count = converted.notna().sum()
+    
+    if non_empty > 0 and converted_count / non_empty >= 0.95:
+        numeric_columns.append(col)
+        df[col] = converted
+    elif non_empty == 0:
+        numeric_columns.append(col)
+        df[col] = converted
+
+# Seleccionar columnas elegibles (máximo 20% ausentes)
+eligible_columns = [
+    col for col in numeric_columns 
+    if df[col].isna().sum() / len(df) <= 0.20
+]
+
+# Calcular correlaciones de Pearson
+best_r = -2
+best_pair = None
+
+for col_a, col_b in combinations(sorted(eligible_columns), 2):
+    mask = df[col_a].notna() & df[col_b].notna()
+    if mask.sum() < 3:
+        continue
+    
+    x = df.loc[mask, col_a].values
+    y = df.loc[mask, col_b].values
+    
+    if np.std(x) == 0 or np.std(y) == 0:
+        continue
+    
+    r = np.corrcoef(x, y)[0, 1]
+    if np.isnan(r):
+        continue
+    
+    if abs(r) > abs(best_r):
+        best_r = r
+        best_pair = (col_a, col_b)
+
+# Detectar anomalías por región y columna
+anomaly_mask = pd.Series([False] * len(df), index=df.index)
+
+for col in numeric_columns:
+    for region in df['region'].unique():
+        region_mask = (df['region'] == region)
+        vals = df.loc[region_mask, col].dropna().values
+        
+        if len(vals) == 0:
+            continue
+        
+        med = np.median(vals)
+        mad = np.median(np.abs(vals - med))
+        
+        if mad == 0:
+            continue
+        
+        threshold = 4.5 * 1.4826 * mad
+        anomaly_in_region = (
+            region_mask & 
+            (df[col].notna()) & 
+            (np.abs(df[col] - med) > threshold)
+        )
+        anomaly_mask |= anomaly_in_region
+
+# Generar salida JSON
+anomalies = sorted(df.loc[anomaly_mask, 'id'].unique().tolist())
+result = {
+    "par": sorted(list(best_pair)) if best_pair else [],
+    "anomalias": anomalies
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

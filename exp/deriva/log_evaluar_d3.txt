@@ -1,0 +1,6 @@
+5 pendientes de 90
+[1/5] datos-deriva-D3-03 gasto $0.41
+[2/5] datos-deriva-D3-02 gasto $0.46
+[3/5] datos-deriva-D3-01 gasto $0.60
+[4/5] datos-deriva-D3-00 gasto $0.60
+[5/5] datos-deriva-D3-04 gasto $0.68

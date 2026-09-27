@@ -1,0 +1,105 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Cargar y preparar datos
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip en todas las celdas
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# Deduplicar por id (mantener primera aparición)
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Parsear números
+columnas_numericas = ['resenas', 'clics', 'humedad', 'temperatura', 'coste_envio', 
+                      'incidencias', 'descuento', 'stock', 'devoluciones', 
+                      'tiempo_entrega', 'horas_extra', 'precio_medio', 'averias']
+
+def parse_number(s):
+    if s == '':
+        return np.nan
+    try:
+        if ',' in s:
+            # Coma es separador decimal; punto es separador de miles
+            s = s.replace('.', '').replace(',', '.')
+        return float(s)
+    except:
+        return np.nan
+
+for col in columnas_numericas:
+    df[col] = df[col].apply(parse_number)
+
+# Normalizar región
+df['region'] = df['region'].str.lower()
+
+# Seleccionar columnas elegibles (<=20% de ausentes)
+elegibles = [col for col in columnas_numericas 
+             if df[col].isna().sum() / len(df) <= 0.20]
+
+# Calcular correlaciones
+correlations = []
+
+for col_a, col_b in combinations(sorted(elegibles), 2):
+    # Eliminación por pares: solo filas donde ambas columnas tienen valor
+    mask = df[col_a].notna() & df[col_b].notna()
+    
+    if mask.sum() < 3:
+        continue
+    
+    x = df.loc[mask, col_a].values
+    y = df.loc[mask, col_b].values
+    
+    # Ignorar pares con varianza cero
+    if np.var(x) == 0 or np.var(y) == 0:
+        continue
+    
+    r = np.corrcoef(x, y)[0, 1]
+    abs_r = abs(r)
+    
+    correlations.append((abs_r, col_a, col_b))
+
+# Tomar máximo |r|; en caso de empate, primer par alfabético
+correlations.sort(key=lambda x: (-x[0], x[1], x[2]))
+_, col_a, col_b = correlations[0]
+best_pair = (col_a, col_b)
+
+# Detectar anomalías por región y columna
+anomalias_ids = set()
+
+for region in df['region'].unique():
+    df_region = df[df['region'] == region]
+    
+    for col in columnas_numericas:
+        valores = df_region[col].dropna().values
+        
+        if len(valores) == 0:
+            continue
+        
+        # Mediana y MAD
+        med = np.median(valores)
+        mad = np.median(np.abs(valores - med))
+        
+        # Si MAD es 0, esta columna no marca anomalías en esta región
+        if mad == 0:
+            continue
+        
+        scale = 4.5 * 1.4826 * mad
+        
+        # Marcar filas anómalas
+        for idx, row in df_region.iterrows():
+            val = row[col]
+            if pd.notna(val) and abs(val - med) > scale:
+                anomalias_ids.add(row['id'])
+
+# Resultado final
+resultado = {
+    'par': sorted(best_pair),
+    'anomalias': sorted(list(anomalias_ids))
+}
+
+print(json.dumps(resultado, ensure_ascii=False))
+```

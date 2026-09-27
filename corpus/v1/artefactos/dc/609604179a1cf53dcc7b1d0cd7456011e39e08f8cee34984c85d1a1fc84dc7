@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.02,
+  "diferencia": "La Regla 0 difiere críticamente: POLÍTICA A retiene la PRIMERA aparición de IDs duplicados, mientras que POLÍTICA B retiene la ÚLTIMA aparición. Esto altera los datos base para calcular correlaciones (Regla 1) y detectar anomalías (Regla 2), produciendo resultados diferentes para cualquier dataset con IDs repetidos."
+}
+```

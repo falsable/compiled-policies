@@ -1,0 +1,111 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+
+# Cargar CSV como texto
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Aplicar strip a todas las celdas
+for col in df.columns:
+    df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+
+# Deduplicar por id (primera aparición)
+df = df[~df['id'].duplicated(keep='first')].reset_index(drop=True)
+
+# Normalizar region (strip y lower)
+df['region'] = df['region'].apply(lambda x: x.strip().lower() if isinstance(x, str) else x)
+
+# Convertir columnas numéricas
+numeric_cols = ['humedad', 'tiempo_entrega', 'precio_medio', 'conversiones', 'coste_envio',
+                'tickets_soporte', 'stock', 'incidencias', 'devoluciones', 'ventas',
+                'horas_extra', 'visitas', 'averias']
+
+def parse_num(x):
+    if not isinstance(x, str):
+        return np.nan
+    x = x.strip()
+    if x == '':
+        return np.nan
+    
+    if ',' in x:
+        x = x.replace('.', '').replace(',', '.')
+    
+    try:
+        return float(x)
+    except ValueError:
+        return np.nan
+
+for col in numeric_cols:
+    df[col] = df[col].apply(parse_num)
+
+# Seleccionar columnas elegibles (frac_na <= 0.20)
+eligible = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / len(df)
+    if frac_na <= 0.20:
+        eligible.append(col)
+
+# Calcular correlaciones (pairwise complete)
+max_corr = -1
+best_pair = None
+
+for i in range(len(eligible)):
+    for j in range(i+1, len(eligible)):
+        col1, col2 = eligible[i], eligible[j]
+        mask = df[col1].notna() & df[col2].notna()
+        common_count = mask.sum()
+        
+        if common_count < 3:
+            continue
+        
+        vals1 = df.loc[mask, col1].values
+        vals2 = df.loc[mask, col2].values
+        
+        if np.std(vals1) > 0 and np.std(vals2) > 0:
+            r = np.corrcoef(vals1, vals2)[0, 1]
+            if not np.isnan(r):
+                abs_r = abs(r)
+                if abs_r > max_corr:
+                    max_corr = abs_r
+                    best_pair = [col1, col2]
+
+par = sorted(best_pair)
+
+# Detectar anomalías por región
+anomalies = set()
+
+for region in df['region'].unique():
+    region_df = df[df['region'] == region]
+    
+    for col in numeric_cols:
+        vals = region_df[col].dropna()
+        
+        if len(vals) == 0:
+            continue
+        
+        med = vals.median()
+        mad = (vals - med).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        s = 1.4826 * mad
+        threshold = 4.5 * s
+        
+        region_mask = df['region'] == region
+        col_values = df.loc[region_mask, col]
+        deviations = (col_values - med).abs()
+        anomaly_mask = deviations > threshold
+        
+        anomalous_ids = df.loc[region_mask & anomaly_mask, 'id'].values
+        for id_val in anomalous_ids:
+            anomalies.add(id_val)
+
+result = {
+    'par': par,
+    'anomalias': sorted(list(anomalies))
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.00,
+  "diferencia": "Hay dos cambios de criterio que afectan los resultados:\n\n1. FACTOR IVA: Cambia de 1.21 (21% IVA) a 1.10 (10% IVA). Esto afecta TODOS los cálculos de importes cuando hay '+ IVA'. Ejemplo: 100 EUR + IVA → 121 EUR (Política A) vs 110 EUR (Política B).\n\n2. VENTANA TEMPORAL PARA ACUMULADO: Cambia de 7 días a 14 días anteriores. Esto afecta el cálculo del importe acumulado para determinar el nivel de aprobador (auto/jefe_departamento/direccion). Con una ventana más amplia, se acumularán más solicitudes, alterando potencialmente el aprobador asignado.\n\nAmbos cambios son substantivos y cambiarían los resultados para muchas entradas."
+}
+```

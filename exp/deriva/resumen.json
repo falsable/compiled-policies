@@ -1,0 +1,262 @@
+{
+ "tabla": [
+  {
+   "politica": "reutilizar (solo si revienta)",
+   "acierto_normal_%": 100.0,
+   "coste_total_normal_$": 0.008,
+   "acierto_deriva_%": 95.0,
+   "coste_total_deriva_$": 0.125,
+   "fallos_silenciosos": 2,
+   "deteccion_silenciosas_deriva_%": 0.0,
+   "falsas_alarmas_normal_%": 0.0,
+   "falsas_alarmas_deriva_%": 0.0,
+   "coste_total_50_50_$": 0.067,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 80.652
+  },
+  {
+   "politica": "+ invariantes",
+   "acierto_normal_%": 100.0,
+   "coste_total_normal_$": 0.008,
+   "acierto_deriva_%": 95.0,
+   "coste_total_deriva_$": 0.125,
+   "fallos_silenciosos": 2,
+   "deteccion_silenciosas_deriva_%": 0.0,
+   "falsas_alarmas_normal_%": 0.0,
+   "falsas_alarmas_deriva_%": 0.0,
+   "coste_total_50_50_$": 0.067,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 80.652
+  },
+  {
+   "politica": "+ N-versión",
+   "acierto_normal_%": 100.0,
+   "coste_total_normal_$": 0.008,
+   "acierto_deriva_%": 95.0,
+   "coste_total_deriva_$": 0.125,
+   "fallos_silenciosos": 2,
+   "deteccion_silenciosas_deriva_%": 0.0,
+   "falsas_alarmas_normal_%": 0.0,
+   "falsas_alarmas_deriva_%": 0.0,
+   "coste_total_50_50_$": 0.067,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 80.652
+  },
+  {
+   "politica": "+ perfil (5 tareas)",
+   "acierto_normal_%": 96.0,
+   "coste_total_normal_$": 0.178,
+   "acierto_deriva_%": 92.5,
+   "coste_total_deriva_$": 0.379,
+   "fallos_silenciosos": 3,
+   "deteccion_silenciosas_deriva_%": 100.0,
+   "falsas_alarmas_normal_%": 34.0,
+   "falsas_alarmas_deriva_%": 82.5,
+   "coste_total_50_50_$": 0.278,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 19.453
+  },
+  {
+   "politica": "+ perfil (30 tareas) [post-hoc]",
+   "acierto_normal_%": 100.0,
+   "coste_total_normal_$": 0.008,
+   "acierto_deriva_%": 92.5,
+   "coste_total_deriva_$": 0.379,
+   "fallos_silenciosos": 2,
+   "deteccion_silenciosas_deriva_%": 100.0,
+   "falsas_alarmas_normal_%": 0.0,
+   "falsas_alarmas_deriva_%": 82.5,
+   "coste_total_50_50_$": 0.194,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 43.938
+  },
+  {
+   "politica": "+ invariantes + N-versión",
+   "acierto_normal_%": 100.0,
+   "coste_total_normal_$": 0.008,
+   "acierto_deriva_%": 95.0,
+   "coste_total_deriva_$": 0.125,
+   "fallos_silenciosos": 2,
+   "deteccion_silenciosas_deriva_%": 0.0,
+   "falsas_alarmas_normal_%": 0.0,
+   "falsas_alarmas_deriva_%": 0.0,
+   "coste_total_50_50_$": 0.067,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 80.652
+  },
+  {
+   "politica": "+ perfil30 + N-versión [post-hoc]",
+   "acierto_normal_%": 100.0,
+   "coste_total_normal_$": 0.008,
+   "acierto_deriva_%": 92.5,
+   "coste_total_deriva_$": 0.379,
+   "fallos_silenciosos": 2,
+   "deteccion_silenciosas_deriva_%": 100.0,
+   "falsas_alarmas_normal_%": 0.0,
+   "falsas_alarmas_deriva_%": 82.5,
+   "coste_total_50_50_$": 0.194,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 43.938
+  },
+  {
+   "politica": "+ todo (perfil 5)",
+   "acierto_normal_%": 96.0,
+   "coste_total_normal_$": 0.178,
+   "acierto_deriva_%": 92.5,
+   "coste_total_deriva_$": 0.379,
+   "fallos_silenciosos": 3,
+   "deteccion_silenciosas_deriva_%": 100.0,
+   "falsas_alarmas_normal_%": 34.0,
+   "falsas_alarmas_deriva_%": 82.5,
+   "coste_total_50_50_$": 0.278,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 19.453
+  },
+  {
+   "politica": "generar siempre",
+   "acierto_normal_%": 94.0,
+   "coste_total_normal_$": 0.321,
+   "acierto_deriva_%": 92.5,
+   "coste_total_deriva_$": 0.371,
+   "fallos_silenciosos": 4,
+   "deteccion_silenciosas_deriva_%": NaN,
+   "falsas_alarmas_normal_%": NaN,
+   "falsas_alarmas_deriva_%": NaN,
+   "coste_total_50_50_$": 0.346,
+   "escalados_humano": 0,
+   "ahorro_50_50_vs_generar_%": 0.0
+  },
+  {
+   "politica": "+ perfil30 → verificación cruzada + humano [post-hoc]",
+   "acierto_normal_%": 100.0,
+   "coste_total_normal_$": 0.008,
+   "acierto_deriva_%": 92.5,
+   "coste_total_deriva_$": 0.379,
+   "fallos_silenciosos": 0,
+   "deteccion_silenciosas_deriva_%": NaN,
+   "falsas_alarmas_normal_%": NaN,
+   "falsas_alarmas_deriva_%": NaN,
+   "coste_total_50_50_$": 0.194,
+   "escalados_humano": 3,
+   "ahorro_50_50_vs_generar_%": 43.938
+  }
+ ],
+ "por_tipo": [
+  {
+   "tipo": "D1_separador_miles",
+   "n": 5,
+   "a_ok": 3,
+   "a_revienta": 0,
+   "b_ok": 3,
+   "acuerdo": 5,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 4
+  },
+  {
+   "tipo": "D2_region_nueva",
+   "n": 5,
+   "a_ok": 5,
+   "a_revienta": 0,
+   "b_ok": 5,
+   "acuerdo": 5,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 4
+  },
+  {
+   "tipo": "D3_csv_punto_y_coma",
+   "n": 5,
+   "a_ok": 0,
+   "a_revienta": 5,
+   "b_ok": 0,
+   "acuerdo": 0,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 5
+  },
+  {
+   "tipo": "D4_columna_texto",
+   "n": 5,
+   "a_ok": 5,
+   "a_revienta": 0,
+   "b_ok": 5,
+   "acuerdo": 5,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 4
+  },
+  {
+   "tipo": "N1_cambio_mes",
+   "n": 5,
+   "a_ok": 5,
+   "a_revienta": 0,
+   "b_ok": 5,
+   "acuerdo": 5,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 5
+  },
+  {
+   "tipo": "N2_importes_grandes",
+   "n": 5,
+   "a_ok": 5,
+   "a_revienta": 0,
+   "b_ok": 5,
+   "acuerdo": 5,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 5
+  },
+  {
+   "tipo": "N3_lote_grande",
+   "n": 5,
+   "a_ok": 5,
+   "a_revienta": 0,
+   "b_ok": 5,
+   "acuerdo": 5,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 5
+  },
+  {
+   "tipo": "N4_dep_prov_nuevos",
+   "n": 5,
+   "a_ok": 5,
+   "a_revienta": 0,
+   "b_ok": 5,
+   "acuerdo": 5,
+   "perfil": 5,
+   "invariantes": 0,
+   "gen_ok": 5
+  },
+  {
+   "tipo": "normal",
+   "n": 50,
+   "a_ok": 50,
+   "a_revienta": 0,
+   "b_ok": 50,
+   "acuerdo": 50,
+   "perfil": 17,
+   "invariantes": 0,
+   "gen_ok": 47
+  }
+ ],
+ "K3a_combinaciones": [
+  "+ perfil (30 tareas) [post-hoc]",
+  "+ perfil30 + N-versión [post-hoc]"
+ ],
+ "K3b_combinaciones": [
+  "+ perfil (30 tareas) [post-hoc]",
+  "+ perfil30 + N-versión [post-hoc]"
+ ],
+ "K3a_supera": true,
+ "K3b_supera": true,
+ "silenciosas_deriva": 2,
+ "silenciosas_normal": 0,
+ "bloques_B": {
+  "datos": "5/5",
+  "negocio": "5/5"
+ },
+ "gasto_generacion_nueva_$": 8.835009000000001
+}

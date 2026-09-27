@@ -1,0 +1,95 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+import itertools
+from scipy.stats import pearsonr
+
+# Cargar CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Reemplazar celdas vacías/solo espacios con NaN
+df = df.replace(r'^\s*$', np.nan, regex=True)
+
+# Strip en id y region
+df['id'] = df['id'].str.strip()
+df['region'] = df['region'].str.strip()
+
+# Deduplicar por id (keep='first')
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Convertir columnas numéricas
+columnas_numericas = [c for c in df.columns if c not in ['id', 'region']]
+
+for col in columnas_numericas:
+    df[col] = df[col].str.strip().str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Seleccionar columnas elegibles (frac_na <= 0.20)
+elegibles = [col for col in columnas_numericas 
+             if df[col].isna().sum() / len(df) <= 0.20]
+
+# Calcular correlaciones de Pearson entre pares de elegibles
+mejor_abs_r = -1
+mejor_par = None
+
+for i, j in itertools.combinations(range(len(elegibles)), 2):
+    col_i = elegibles[i]
+    col_j = elegibles[j]
+    
+    # Filas con ambos valores no NaN
+    mask = df[col_i].notna() & df[col_j].notna()
+    if mask.sum() < 3:
+        continue
+    
+    x = df.loc[mask, col_i].values
+    y = df.loc[mask, col_j].values
+    
+    # Verificar varianza
+    if np.std(x) == 0 or np.std(y) == 0:
+        continue
+    
+    try:
+        r, _ = pearsonr(x, y)
+        abs_r = abs(r)
+        
+        if abs_r > mejor_abs_r:
+            mejor_abs_r = abs_r
+            mejor_par = sorted([col_i, col_j])
+    except:
+        continue
+
+# Calcular anomalías por región
+anomalias_ids = set()
+
+for region, grupo in df.groupby('region', dropna=False):
+    for col in columnas_numericas:
+        x = grupo[col].dropna()
+        if len(x) == 0:
+            continue
+        
+        med = x.median()
+        mad = (x - med).abs().median()
+        
+        # Si MAD es 0, no marca anomalías
+        if mad == 0:
+            continue
+        
+        s = 1.4826 * mad
+        umbral = 4.5 * s
+        
+        # Marcar celdas anómalas
+        mask_anomalo = (grupo[col].notna()) & ((grupo[col] - med).abs() > umbral)
+        anomalias_ids.update(grupo[mask_anomalo]['id'].values)
+
+# Ordenar anomalías
+anomalias = sorted(list(anomalias_ids))
+
+# Construir resultado
+resultado = {
+    "par": mejor_par if mejor_par else [],
+    "anomalias": anomalias
+}
+
+print(json.dumps(resultado, ensure_ascii=False))
+```

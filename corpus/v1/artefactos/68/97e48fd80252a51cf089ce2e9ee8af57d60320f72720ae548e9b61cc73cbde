@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "No hay diferencias sustanciales. Ambas políticas especifican idénticas reglas de procesamiento: ordenamiento (fecha + id alfabético), formatos de importes, conversión a EUR, tratamiento de IVA, criterios de rechazo/escalada/aprobación, acumulación para aprobadores (≤500€→auto, ≤5000€→jefe, >5000€→dirección), revision_it para software, y manejo de cancelaciones. Las únicas diferencias son de redacción ('descuenta' vs 'se resta', 'EUR usa' vs 'En EUR el número', 'no aparecen' vs 'no se incluyen', etc.). Todos los umbrales (500€, 5000€, 7 días, factor 1.21 de IVA), criterios y reglas son exactamente iguales."
+}
+```

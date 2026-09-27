@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.97,
+  "diferencia": "No se detectan diferencias sustanciales. Ambas políticas utilizan idénticos umbrales (500€ / 5000€ para aprobador; 7 días para acumulado), criterios de decisión, monedas y conversiones, reglas de escalada/rechazo/aprobación, cálculo de importe acumulado, condiciones de cancelación y redondeo a 2 decimales. Se aplican en el mismo orden (proveedor → presupuesto → aprobación). Las diferencias son únicamente de redacción: POLÍTICA B usa lenguaje más explícito en revision_it (añade 'false en otro caso') y renumera a), b), c) en lugar de 1), 2), 3), pero sin alterar la lógica."
+}
+```

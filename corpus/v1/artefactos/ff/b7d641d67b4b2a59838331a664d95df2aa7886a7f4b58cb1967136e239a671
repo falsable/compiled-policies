@@ -1,0 +1,67 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Leer CSV con control de tipos
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=True)
+
+# Hacer strip de espacios
+for col in df.columns:
+    df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+
+# Convertir '' a NaN
+df = df.replace('', np.nan)
+
+# Deduplicar por 'id' (primera aparición)
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Identificar columnas numéricas
+numeric_cols = [c for c in df.columns if c not in ['id', 'region']]
+
+# Convertir columnas numéricas (reemplazar coma decimal)
+for col in numeric_cols:
+    df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Filtrar columnas elegibles (<=20% NaN)
+eligible_cols = [c for c in numeric_cols if df[c].isna().mean() <= 0.20]
+
+# Calcular par con mayor correlación de Pearson (en valor absoluto)
+best_corr = -1
+best_pair = None
+
+for col_a, col_b in combinations(eligible_cols, 2):
+    sub = df[[col_a, col_b]].dropna()
+    if len(sub) >= 3:
+        r = sub[col_a].corr(sub[col_b])
+        if pd.notna(r) and abs(r) > best_corr:
+            best_corr = abs(r)
+            best_pair = sorted([col_a, col_b])
+
+# Detectar filas anómalas
+anomaly_mask = pd.Series([False] * len(df))
+
+for col in numeric_cols:
+    x = df[col]
+    med = x.median()
+    mad = (x - med).abs().median()
+    
+    # Si MAD == 0, esta columna no marca anomalías
+    if mad > 0:
+        threshold = 4.5 * mad * 1.4826
+        col_anomalies = (x - med).abs() > threshold
+        anomaly_mask = anomaly_mask | col_anomalies
+
+# Obtener IDs de filas anómalas (ordenadas)
+anomaly_ids = sorted(df.loc[anomaly_mask, 'id'].unique().tolist())
+
+# Resultado final
+result = {
+    'par': best_pair,
+    'anomalias': anomaly_ids
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

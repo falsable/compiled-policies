@@ -1,0 +1,112 @@
+import pandas as pd
+import numpy as np
+import json
+import itertools
+import sys
+
+# Paso 1: Cargar CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Aplicar strip a todas las celdas
+for col in df.columns:
+    df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+
+# Convertir strings vacíos en NaN
+df = df.replace('', np.nan)
+
+# Paso 2: Deduplicar por id (primera aparición)
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Función para parsear números con formato europeo
+def parse_num(s):
+    if pd.isna(s):
+        return np.nan
+    s = str(s).strip()
+    if s == '':
+        return np.nan
+    # Si contiene coma, es formato europeo: eliminar puntos (miles) y reemplazar coma
+    if ',' in s:
+        s = s.replace('.', '').replace(',', '.')
+    try:
+        return float(s)
+    except ValueError:
+        return np.nan
+
+# Paso 3: Convertir columnas numéricas
+numeric_cols = ['horas_extra', 'coste_envio', 'descuento', 'resenas', 'conversiones', 
+                'devoluciones', 'tiempo_entrega', 'ventas', 'precio_medio', 'temperatura', 
+                'visitas', 'humedad', 'averias']
+
+for col in numeric_cols:
+    df[col] = df[col].apply(parse_num)
+
+# Paso 4: Normalizar region (strip y lower)
+df['region'] = df['region'].apply(lambda x: x.lower() if pd.notna(x) else x)
+
+# Paso 5: Calcular columnas elegibles (máximo 20% de NaN)
+elegibles = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / len(df)
+    if frac_na <= 0.20:
+        elegibles.append(col)
+
+# Paso 6: Calcular relación principal (mayor |r| de Pearson)
+max_corr = -1
+best_pair = None
+
+for col_a, col_b in itertools.combinations(elegibles, 2):
+    # Pairwise complete: filas donde ambas columnas tienen valor
+    mask = df[col_a].notna() & df[col_b].notna()
+    if mask.sum() < 2:
+        continue
+    
+    a = df.loc[mask, col_a].values
+    b = df.loc[mask, col_b].values
+    
+    # Evitar columnas con varianza 0
+    if np.std(a) == 0 or np.std(b) == 0:
+        continue
+    
+    r = np.corrcoef(a, b)[0, 1]
+    if np.isnan(r):
+        continue
+    
+    abs_r = abs(r)
+    if abs_r > max_corr:
+        max_corr = abs_r
+        best_pair = tuple(sorted([col_a, col_b]))
+
+# Paso 7: Detectar anomalías por región
+anomaly_ids = set()
+
+for region in df['region'].unique():
+    region_df = df[df['region'] == region]
+    
+    for col in numeric_cols:
+        v = region_df[col].dropna().values
+        
+        if len(v) == 0:
+            continue
+        
+        # Calcular mediana y MAD (sin escalar internamente)
+        med = np.median(v)
+        mad = np.median(np.abs(v - med))
+        
+        # Si MAD = 0, esta columna no marca anomalías en esta región
+        if mad == 0:
+            continue
+        
+        # Umbral robusto
+        threshold = 4.5 * 1.4826 * mad
+        
+        # Marcar filas anómalas (desigualdad estricta)
+        anomalous_mask = (region_df[col].notna()) & (np.abs(region_df[col] - med) > threshold)
+        anomaly_ids.update(region_df[anomalous_mask]['id'].values)
+
+# Paso 8: Construir y imprimir resultado JSON
+resultado = {
+    'par': list(best_pair) if best_pair else [],
+    'anomalias': sorted(list(anomaly_ids))
+}
+
+print(json.dumps(resultado, ensure_ascii=False))

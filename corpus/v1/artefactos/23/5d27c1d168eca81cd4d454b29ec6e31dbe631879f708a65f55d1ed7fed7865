@@ -1,0 +1,71 @@
+```json
+{
+  "objetivo": "Leer entradas.json y aplicar la política de compras al lote. El programa imprime un JSON con dos claves. La primera es \"decisiones\": un diccionario con una clave por cada id de tipo \"solicitud\" (sin incluir cancelaciones). Cada valor es {\"estado\", \"aprobador\", \"motivo\", \"revision_it\"}. La segunda es \"presupuesto_final\": un diccionario {departamento: euros} redondeados a 2 decimales, con el presupuesto restante tras procesar todo.",
+  "criterios": [
+    "ORDEN: ordenar todas las entradas (solicitudes y cancelaciones juntas) por la tupla (fecha, id). La comparación es de cadenas: las fechas ISO se ordenan bien como texto y los id por orden alfabético (por ejemplo, 'CX-…' va antes que 'SC-…' en la misma fecha). El lote viene desordenado.",
+    "PARSEO DEL IMPORTE: el texto contiene un número, una divisa y opcionalmente un sufijo. La divisa puede ser 'EUR', '€', 'USD' o 'GBP'; '€' equivale a EUR. El sufijo puede ser '+ IVA' o '(IVA incluido)'. Extraer el número con una expresión regular como r'[\\d.,]+'.",
+    "FORMATO DEL NÚMERO EN EUR: si contiene ',', es formato español. Se eliminan todos los '.' (separador de miles) y la ',' se sustituye por '.'. Ejemplos: '1.765,39' → 1765.39 y '80,29' → 80.29. Si no contiene ',', es formato plano ('376.10' → 376.10).",
+    "FORMATO DEL NÚMERO EN USD/GBP: formato anglosajón. Se eliminan las ',' (separador de miles) y el '.' es el decimal. Ejemplo: '1,752.45' → 1752.45.",
+    "CONVERSIÓN: eur = round(importe × tipos_cambio[divisa], 2). Usar Decimal con ROUND_HALF_UP, o round sobre un float y cuantizar con cuidado. Después, si el texto contiene '+ IVA': importe_final = round(eur × 1.21, 2). Si contiene '(IVA incluido)': importe_final = eur. El redondeo intermedio a 2 decimales antes de aplicar el IVA es obligatorio.",
+    "REGLA 1: si el proveedor NO está en proveedores_homologados, la comparación es exacta. Si además la categoría es 'seguridad' y urgente es true: estado 'escalada', aprobador 'direccion', motivo 'excepcion_seguridad'. En otro caso: estado 'rechazada', aprobador null, motivo 'proveedor_no_homologado'. Ninguno de los dos casos toca el presupuesto. Con esta regla se termina la evaluación de la solicitud; solo queda calcular revision_it.",
+    "REGLA 2: solo se aplica si el proveedor está homologado. Si importe_final > presupuesto restante del departamento (comparación estricta), resulta: estado 'escalada', aprobador 'finanzas', motivo 'sin_presupuesto'. No se descuenta nada. Para esta comparación se usa solo el importe de esta solicitud, sin acumular.",
+    "REGLA 3: en otro caso, estado 'aprobada', motivo null, y se descuenta importe_final del presupuesto del departamento (redondear a 2 decimales). El aprobador depende del acumulado. Acumulado = importe_final + suma de importes de las solicitudes YA procesadas que cumplan todo lo siguiente: están en estado 'aprobada' en ese momento (las canceladas o no aprobadas no cuentan), tienen el mismo proveedor y el mismo departamento, y cumplen 0 ≤ (fecha_actual − fecha_otra).days ≤ 7. Umbrales: acumulado ≤ 500 → 'auto'; ≤ 5000 → 'jefe_departamento'; > 5000 → 'direccion'.",
+    "REGLA 4: revision_it = true si categoria == 'software' y el estado es 'aprobada' o 'escalada'. En cualquier otro caso es false.",
+    "CANCELACIÓN: localizar la solicitud 'referencia'. Si su estado actual es 'aprobada', devolver su importe_final al presupuesto del departamento. En todos los casos, fijar estado 'cancelada', aprobador null, motivo 'cancelada_por_solicitante' y revision_it false. Si la referencia estaba rechazada o escalada, se cancela igualmente sin devolver nada. Las cancelaciones no aparecen en 'decisiones'.",
+    "Caso límite de cancelación: si la referencia aún no se ha procesado o no existe, registrarlo como un caso anómalo que no debería ocurrir en este lote. En este lote las dos referencias (SC-324-01 y SC-324-07) tienen fecha anterior a la de su cancelación.",
+    "Todos los importes y presupuestos se redondean a 2 decimales. Se recomienda trabajar con Decimal y convertir a float solo al imprimir."
+  ],
+  "pasos": [
+    {
+      "n": 1,
+      "accion": "Cargar datos",
+      "detalle": "Leer entradas.json y obtener las variables politica, proveedores_homologados (convertida a set), tipos_cambio y presupuesto_inicial (copiarlo a un dict 'presupuesto' con Decimal) y entradas."
+    },
+    {
+      "n": 2,
+      "accion": "Implementar parse_importe(texto)",
+      "detalle": "Primero detectar la divisa: 'USD', 'GBP', o EUR si aparece 'EUR' o '€'. Luego detectar el IVA: si aparece '+ IVA' se añade; si aparece 'IVA incluido' no se añade. Extraer el número con la regex y normalizarlo según la divisa, como se indica en los criterios. Convertir a EUR redondeando a 2 decimales y aplicar ×1.21 con otro redondeo a 2 decimales si corresponde. Devolver un Decimal."
+    },
+    {
+      "n": 3,
+      "accion": "Ordenar entradas",
+      "detalle": "Ordenar con sorted(entradas, key=lambda e: (e['fecha'], e['id']))."
+    },
+    {
+      "n": 4,
+      "accion": "Procesar solicitudes",
+      "detalle": "Para cada solicitud, calcular importe_final y aplicar las reglas 1 → 2 → 3 en orden. Guardar en un dict 'registro[id]' los campos estado, aprobador, motivo, revision_it, importe, departamento, proveedor, fecha (como date) y categoria. Al aprobar, calcular el acumulado recorriendo registro según el criterio de la regla 3, antes de insertar la solicitud actual. Descontar el importe del presupuesto."
+    },
+    {
+      "n": 5,
+      "accion": "Procesar cancelaciones",
+      "detalle": "Tomar la solicitud referenciada en registro. Si su estado es 'aprobada', sumar su importe al presupuesto de su departamento. Después, poner estado 'cancelada', aprobador None, motivo 'cancelada_por_solicitante' y revision_it False."
+    },
+    {
+      "n": 6,
+      "accion": "Construir salida",
+      "detalle": "Construir decisiones = {id: {estado, aprobador, motivo, revision_it}} solo con las solicitudes; se pueden ordenar por id. Construir presupuesto_final = {dep: float(round(valor, 2))}. Imprimir el resultado con json.dumps(..., ensure_ascii=False, indent=2)."
+    }
+  ],
+  "verificacion": [
+    "Comprobar que 'decisiones' contiene exactamente 17 claves, que son los ids SC-324-00 a SC-324-16 que existen en el lote, y ningún id CX.",
+    "Comprobar los importes parseados. Valores esperados: SC-324-04 = 218.32; SC-324-09 = 97.15; SC-324-02 = 97.02; SC-324-05 = 4226.60; SC-324-08 = 1765.39; SC-324-15 = 304.89.",
+    "Comprobar la coherencia de cada estado: una solicitud aprobada tiene motivo null y aprobador en {auto, jefe_departamento, direccion}; una rechazada tiene aprobador null; una cancelada tiene revision_it false.",
+    "Comprobar que ningún presupuesto queda negativo. Además, el presupuesto inicial menos la suma de los importes de las solicitudes que siguen aprobadas debe ser igual al presupuesto final de cada departamento.",
+    "Resultado esperado para contrastar el importe de SC-324-05: 4226.60 es mayor que el restante de rrhh (3802.98), así que SC-324-05 queda escalada/finanzas/sin_presupuesto.",
+    "Resultado esperado para contrastar los aprobadores: SC-324-15 tiene aprobador jefe_departamento (acumulado 635.02 con SC-324-14) y revision_it true. SC-324-08 tiene aprobador jefe_departamento, porque SC-324-15 queda a 8 días y no entra en la ventana. SC-324-00 queda escalada/direccion/excepcion_seguridad. SC-324-01 y SC-324-07 quedan canceladas.",
+    "Presupuesto final esperado: marketing 5328.22, operaciones 599.59, it 6084.53, rrhh 3802.98."
+  ],
+  "riesgos": [
+    "Interpretar mal '376.10 EUR' como formato español (resultaría 37610) o '80,29' como separador de miles. La norma es: si un EUR contiene coma, es formato español; si no, es formato plano.",
+    "No reconocer '€' como EUR.",
+    "No redondear eur antes de multiplicar por 1.21, o usar el redondeo bancario de float que da diferencias de un céntimo. Conviene usar Decimal con ROUND_HALF_UP.",
+    "Procesar en el orden del archivo en lugar de ordenar por (fecha, id).",
+    "Aplicar la regla 2 antes que la regla 1: un proveedor no homologado nunca llega a la regla de presupuesto.",
+    "Descontar presupuesto en las solicitudes escaladas, o devolver presupuesto al cancelar una solicitud que no estaba aprobada (por ejemplo SC-324-07).",
+    "Incluir en el acumulado solicitudes canceladas, rechazadas o de otro departamento o proveedor, o calcular mal la ventana de 7 días. La ventana es de 0 a 7 días hacia atrás, inclusive.",
+    "Usar el acumulado en la regla 2: esa regla usa solo el importe individual.",
+    "Incluir las cancelaciones en 'decisiones', o imprimir los Decimal sin convertirlos a float, lo que hace fallar json.dumps."
+  ]
+}
+```

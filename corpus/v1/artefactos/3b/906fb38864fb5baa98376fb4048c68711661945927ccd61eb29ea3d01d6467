@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Ambas políticas son funcionalmente idénticas. Las diferencias son únicamente de redacción y presentación: 'mayor que' vs 'supera', 'descuenta' vs 'resta', 'por fecha' vs 'en orden de fecha', '7 días anteriores (incluida misma fecha)' vs '7 días previos (misma fecha cuenta)', etc. Todos los parámetros críticos coinciden exactamente: umbrales (500€, 5000€), porcentaje IVA (1.21), ventana temporal (7 días), categorías (seguridad, software), criterios de aprobación, estados y motivos. Ordenamiento, reglas de validación, lógica de cancelación e inclusión en decisiones son idénticas."
+}
+```

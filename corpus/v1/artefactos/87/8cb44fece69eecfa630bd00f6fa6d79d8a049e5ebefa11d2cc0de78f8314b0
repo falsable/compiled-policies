@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "No hay diferencias sustantivas. Solo cambios redaccionales: 'quédate' vs 'conserva', 'se aleja' vs 'dista', 'como mucho' vs 'no pase del', 'valores no ausentes' vs 'valor presente'. Las reglas 0, 1 y 2 son idénticas en criterios, umbrales (20%, 4.5 MAD), condiciones (MAD=0), cálculos (Pearson en valor absoluto, mediana por región) y estructura lógica."
+}
+```

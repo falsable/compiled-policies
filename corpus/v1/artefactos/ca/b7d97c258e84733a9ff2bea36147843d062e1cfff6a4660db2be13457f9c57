@@ -1,0 +1,100 @@
+import pandas as pd
+import json
+import numpy as np
+
+# Cargar CSV como strings
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip de espacios y convertir '' en NaN
+for col in df.columns:
+    df[col] = df[col].str.strip()
+    df[col] = df[col].replace('', np.nan)
+
+# Deduplicar por id (mantener primera aparición)
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Identificar y convertir columnas numéricas
+numeric_cols = []
+for col in df.columns:
+    if col in ['id', 'region', 'comentario']:
+        continue
+    
+    non_nan_before = df[col].notna().sum()
+    if non_nan_before == 0:
+        continue
+    
+    # Normalizar coma decimal y convertir a número
+    temp = df[col].copy()
+    temp = temp.fillna('')
+    temp = temp.str.replace(',', '.', regex=False)
+    num = pd.to_numeric(temp, errors='coerce')
+    
+    # Si >=90% de valores no vacíos se convierten exitosamente, es numérica
+    non_nan_after = num.notna().sum()
+    prop = non_nan_after / non_nan_before
+    
+    if prop >= 0.9:
+        df[col] = num
+        numeric_cols.append(col)
+
+# Seleccionar columnas para correlación (<=20% de ausentes)
+cols_ok = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / len(df)
+    if frac_na <= 0.20:
+        cols_ok.append(col)
+
+# Calcular correlaciones y encontrar el par con mayor |r|
+max_corr = -1
+best_pair = None
+for i in range(len(cols_ok)):
+    for j in range(i + 1, len(cols_ok)):
+        col_a = cols_ok[i]
+        col_b = cols_ok[j]
+        
+        # Calcular correlación solo con filas donde ambas tienen valor
+        mask = df[col_a].notna() & df[col_b].notna()
+        if mask.sum() > 1:
+            r = df.loc[mask, [col_a, col_b]].corr(method='pearson').iloc[0, 1]
+            if pd.notna(r):
+                abs_r = abs(r)
+                if abs_r > max_corr:
+                    max_corr = abs_r
+                    best_pair = [col_a, col_b]
+
+if best_pair:
+    best_pair = sorted(best_pair)
+
+# Detectar anomalías por región
+anomaly_ids = set()
+for region, grupo in df.groupby('region', dropna=False):
+    for col in numeric_cols:
+        vals = grupo[col].dropna()
+        
+        if len(vals) == 0:
+            continue
+        
+        med = vals.median()
+        mad = (vals - med).abs().median()
+        
+        # Si MAD es 0, esa columna no marca anomalías en esa región
+        if mad == 0:
+            continue
+        
+        escala = mad * 1.4826
+        umbral = 4.5 * escala
+        
+        # Identificar filas anómalas en este grupo y columna
+        for row_idx in grupo.index:
+            val = df.loc[row_idx, col]
+            if pd.notna(val):
+                if abs(val - med) > umbral:
+                    anomaly_ids.add(df.loc[row_idx, 'id'])
+
+# Construir resultado
+resultado = {
+    'par': best_pair,
+    'anomalias': sorted(list(anomaly_ids))
+}
+
+print(json.dumps(resultado, ensure_ascii=False))

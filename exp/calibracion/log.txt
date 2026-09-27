@@ -1,0 +1,14 @@
+12 unidades pendientes de 12
+[1/12] ('datos-extremo-013', 0) gasto acumulado $0.08
+[2/12] ('datos-extremo-027', 0) gasto acumulado $0.08
+[3/12] ('datos-extremo-008', 0) gasto acumulado $0.13
+[4/12] ('datos-extremo-024', 0) gasto acumulado $0.18
+[5/12] ('datos-extremo-012', 0) gasto acumulado $0.31
+[6/12] ('datos-extremo-001', 0) gasto acumulado $0.31
+[7/12] ('negocio-extremo-015', 0) gasto acumulado $0.42
+[8/12] ('negocio-extremo-012', 0) gasto acumulado $0.52
+[9/12] ('negocio-extremo-016', 0) gasto acumulado $0.65
+[10/12] ('negocio-extremo-009', 0) gasto acumulado $0.74
+[11/12] ('negocio-extremo-028', 0) gasto acumulado $0.84
+[12/12] ('negocio-extremo-025', 0) gasto acumulado $0.97
+exp/calibracion/ejecuciones.jsonl

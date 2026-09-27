@@ -1,0 +1,11 @@
+{
+ "umbral_reutilizacion": 0.8337,
+ "V_eur": 2.0,
+ "presupuesto_tarea_eur": 1.0,
+ "modelos": {
+  "barato": "haiku",
+  "caro": "opus"
+ },
+ "esfuerzo": "medium",
+ "sandbox": "subproceso (sin Docker en esta sesi\u00f3n)"
+}

@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.02,
+  "diferencia": "En las Cancelaciones: POLÍTICA A devuelve el importe al presupuesto si la solicitud estaba aprobada ('Si estaba aprobada, su importe vuelve al presupuesto'); POLÍTICA B explícitamente NO lo devuelve ('Aunque estuviera aprobada, su importe NO vuelve al presupuesto'). Esta es una diferencia de criterio/regla que afecta el cálculo del presupuesto restante del departamento, no solo de formato o redacción."
+}
+```

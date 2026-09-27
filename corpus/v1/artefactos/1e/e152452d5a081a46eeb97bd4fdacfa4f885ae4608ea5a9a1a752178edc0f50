@@ -1,0 +1,189 @@
+```python
+import json
+from datetime import datetime
+from typing import Dict
+
+# Leer entradas.json
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = data['tipos_cambio']
+presupuesto = dict(data['presupuesto_inicial'])
+entradas = data['entradas']
+
+def parse_importe(texto: str, tipos_cambio: Dict[str, float]) -> float:
+    """Parsear importe en diferentes formatos y monedas."""
+    # Detectar sufijo de IVA
+    con_iva = False
+    if '(IVA incluido)' in texto:
+        con_iva = False
+        texto_limpio = texto.replace('(IVA incluido)', '').strip()
+    elif '+ IVA' in texto:
+        con_iva = True
+        texto_limpio = texto.replace('+ IVA', '').strip()
+    else:
+        raise ValueError(f"Sufijo de IVA no encontrado en: {texto}")
+    
+    # Detectar moneda
+    moneda = None
+    if 'USD' in texto_limpio:
+        moneda = 'USD'
+    elif 'GBP' in texto_limpio:
+        moneda = 'GBP'
+    elif 'EUR' in texto_limpio or '€' in texto_limpio:
+        moneda = 'EUR'
+    else:
+        raise ValueError(f"Moneda no encontrada en: {texto}")
+    
+    # Extraer número limpio
+    texto_numero = texto_limpio.replace(moneda, '').replace('€', '').strip()
+    
+    # Normalizar número según moneda
+    if moneda == 'EUR':
+        # EUR puede ser formato español (1.112,59) o plano (1234.56)
+        if ',' in texto_numero:
+            # Formato español: quitar puntos, cambiar coma por punto
+            texto_numero = texto_numero.replace('.', '').replace(',', '.')
+    else:
+        # USD/GBP son anglosajones: quitar comas
+        texto_numero = texto_numero.replace(',', '')
+    
+    numero = float(texto_numero)
+    
+    # Conversión a EUR
+    eur = round(numero * tipos_cambio[moneda], 2)
+    
+    # Aplicar IVA si es necesario
+    if con_iva:
+        importe = round(eur * 1.21, 2)
+    else:
+        importe = eur
+    
+    return importe
+
+# Ordenar entradas por (fecha, id)
+entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Procesar entradas
+decisiones = {}
+registro = {}  # id -> información de solicitud
+
+for entrada in entradas_ordenadas:
+    entrada_id = entrada['id']
+    
+    if entrada['tipo'] == 'solicitud':
+        # Parsear importe
+        importe = parse_importe(entrada['importe'], tipos_cambio)
+        
+        # Datos de la solicitud
+        fecha = datetime.strptime(entrada['fecha'], '%Y-%m-%d').date()
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        
+        # Inicializar decisión
+        estado = None
+        aprobador = None
+        motivo = None
+        revision_it = False
+        
+        # Regla 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        else:
+            # Regla 2: Sin presupuesto (solo proveedores homologados)
+            if importe > presupuesto[departamento]:
+                estado = 'escalada'
+                aprobador = 'finanzas'
+                motivo = 'sin_presupuesto'
+            else:
+                # Regla 3: Aprobada
+                estado = 'aprobada'
+                motivo = None
+                presupuesto[departamento] = round(presupuesto[departamento] - importe, 2)
+                
+                # Calcular acumulado
+                acumulado = importe
+                for id_previa in registro:
+                    sol_previa = registro[id_previa]
+                    if (sol_previa['estado'] == 'aprobada' and 
+                        sol_previa['proveedor'] == proveedor and 
+                        sol_previa['departamento'] == departamento):
+                        dias_diff = (fecha - sol_previa['fecha']).days
+                        if 0 <= dias_diff <= 7:
+                            acumulado += sol_previa['importe']
+                
+                # Determinar aprobador según acumulado
+                if acumulado <= 500:
+                    aprobador = 'auto'
+                elif acumulado <= 5000:
+                    aprobador = 'jefe_departamento'
+                else:
+                    aprobador = 'direccion'
+        
+        # Regla 4: revision_it
+        if categoria == 'software' and estado in ('aprobada', 'escalada'):
+            revision_it = True
+        
+        # Guardar en decisiones y registro
+        decisiones[entrada_id] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+        
+        registro[entrada_id] = {
+            'fecha': fecha,
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'categoria': categoria,
+            'importe': importe,
+            'estado': estado
+        }
+    
+    elif entrada['tipo'] == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        # Buscar si la solicitud fue procesada
+        if referencia in registro:
+            sol = registro[referencia]
+            
+            # Si estaba aprobada, devolver presupuesto
+            if sol['estado'] == 'aprobada':
+                presupuesto[sol['departamento']] = round(presupuesto[sol['departamento']] + sol['importe'], 2)
+            
+            # Actualizar estado de la solicitud
+            sol['estado'] = 'cancelada'
+            
+            # También actualizar en decisiones
+            decisiones[referencia] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False
+            }
+
+# Construir salida
+salida = {
+    'decisiones': decisiones,
+    'presupuesto_final': {
+        'marketing': round(presupuesto['marketing'], 2),
+        'operaciones': round(presupuesto['operaciones'], 2),
+        'it': round(presupuesto['it'], 2),
+        'rrhh': round(presupuesto['rrhh'], 2)
+    }
+}
+
+# Imprimir JSON
+print(json.dumps(salida, ensure_ascii=False, indent=2))
+```

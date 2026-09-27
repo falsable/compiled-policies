@@ -1,0 +1,123 @@
+{
+ "dominio": "datos",
+ "ok": true,
+ "esquema": [
+  {
+   "nombre": "columna_id",
+   "tipo": "str",
+   "defecto": "id",
+   "valores_o_rango": "nombre de columna del CSV",
+   "descripcion": "Columna identificadora de fila. Se usa para deduplicar y para reportar anomalías."
+  },
+  {
+   "nombre": "columna_grupo",
+   "tipo": "str",
+   "defecto": "region",
+   "valores_o_rango": "nombre de columna del CSV",
+   "descripcion": "Columna de agrupación dentro de la cual se calculan la mediana y la MAD."
+  },
+  {
+   "nombre": "deduplicar",
+   "tipo": "bool",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Indica si se eliminan los ids repetidos (regla 0)."
+  },
+  {
+   "nombre": "aparicion_conservada",
+   "tipo": "str",
+   "defecto": "first",
+   "valores_o_rango": "first | last",
+   "descripcion": "Qué aparición de un id repetido se conserva."
+  },
+  {
+   "nombre": "aceptar_coma_decimal",
+   "tipo": "bool",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Interpreta la coma como separador decimal en los valores numéricos."
+  },
+  {
+   "nombre": "max_fraccion_ausentes",
+   "tipo": "float",
+   "defecto": 0.2,
+   "valores_o_rango": "0.0 - 1.0",
+   "descripcion": "Fracción máxima de valores ausentes para que una columna numérica pueda entrar en el cálculo de correlaciones."
+  },
+  {
+   "nombre": "metodo_correlacion",
+   "tipo": "str",
+   "defecto": "pearson",
+   "valores_o_rango": "pearson | spearman | kendall",
+   "descripcion": "Método de correlación usado para elegir el par principal."
+  },
+  {
+   "nombre": "correlacion_absoluta",
+   "tipo": "bool",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Si es true, se compara la correlación en valor absoluto; si es false, con su signo."
+  },
+  {
+   "nombre": "umbral_desviaciones",
+   "tipo": "float",
+   "defecto": 4.5,
+   "valores_o_rango": "> 0",
+   "descripcion": "Número de desviaciones robustas respecto a la mediana a partir del cual un valor se considera anómalo."
+  },
+  {
+   "nombre": "factor_mad",
+   "tipo": "float",
+   "defecto": 1.4826,
+   "valores_o_rango": "> 0",
+   "descripcion": "Factor de escala aplicado a la MAD para obtener la desviación robusta."
+  },
+  {
+   "nombre": "omitir_mad_cero",
+   "tipo": "bool",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Si es true, una columna con MAD 0 en un grupo no marca anomalías en ese grupo."
+  },
+  {
+   "nombre": "anomalias_por_grupo",
+   "tipo": "bool",
+   "defecto": true,
+   "valores_o_rango": "true | false",
+   "descripcion": "Si es true, la mediana y la MAD se calculan dentro de cada grupo; si es false, sobre todas las filas."
+  }
+ ],
+ "codigo": "import pandas as pd\nimport numpy as np\nimport json\nimport os\nfrom itertools import combinations\n\nPARAMS = {\n    \"columna_id\": \"id\",\n    \"columna_grupo\": \"region\",\n    \"deduplicar\": True,\n    \"aparicion_conservada\": \"first\",\n    \"aceptar_coma_decimal\": True,\n    \"max_fraccion_ausentes\": 0.20,\n    \"metodo_correlacion\": \"pearson\",\n    \"correlacion_absoluta\": True,\n    \"umbral_desviaciones\": 4.5,\n    \"factor_mad\": 1.4826,\n    \"omitir_mad_cero\": True,\n    \"anomalias_por_grupo\": True,\n}\n\nif os.path.exists('params.json'):\n    with open('params.json', 'r', encoding='utf-8') as f:\n        PARAMS.update(json.load(f))\n\nCOL_ID = PARAMS[\"columna_id\"]\nCOL_GRUPO = PARAMS[\"columna_grupo\"]\n\n# 1. Cargar CSV\ndf = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)\n\n# Strip espacios\nfor col in df.columns:\n    df[col] = df[col].str.strip()\n\n# 2. Deduplicar\nif PARAMS[\"deduplicar\"]:\n    df = df.drop_duplicates(subset=COL_ID, keep=PARAMS[\"aparicion_conservada\"])\ndf = df.reset_index(drop=True)\n\n# Definir columnas numéricas\nnum_cols = [c for c in df.columns if c not in [COL_ID, COL_GRUPO]]\n\n# 3. Convertir numéricas\nfor col in num_cols:\n    def convert_to_float(x):\n        if x == '':\n            return np.nan\n        if PARAMS[\"aceptar_coma_decimal\"]:\n            x = x.replace(',', '.')\n        try:\n            return float(x)\n        except:\n            return np.nan\n    \n    df[col] = df[col].apply(convert_to_float)\n\n# 4. Calcular elegibilidad\nelegibles = []\nfor col in num_cols:\n    nan_pct = df[col].isna().mean()\n    if nan_pct <= PARAMS[\"max_fraccion_ausentes\"]:\n        elegibles.append(col)\n\n# 5. Calcular correlaciones\nmax_corr = -1\nbest_pair = None\n\nfor col_a, col_b in combinations(elegibles, 2):\n    mask = df[col_a].notna() & df[col_b].notna()\n    if mask.sum() < 2:\n        continue\n    \n    corr = df.loc[mask, col_a].corr(df.loc[mask, col_b], method=PARAMS[\"metodo_correlacion\"])\n    \n    if pd.isna(corr):\n        continue\n    \n    abs_corr = abs(corr) if PARAMS[\"correlacion_absoluta\"] else corr\n    \n    if abs_corr > max_corr:\n        max_corr = abs_corr\n        best_pair = sorted([col_a, col_b])\n\n# 6. Detectar anomalías\nanomalias_set = set()\n\nif PARAMS[\"anomalias_por_grupo\"]:\n    grupos_indices = [df[df[COL_GRUPO] == region].index for region in df[COL_GRUPO].unique()]\nelse:\n    grupos_indices = [df.index]\n\nfor region_indices in grupos_indices:\n    for col in num_cols:\n        values = df.loc[region_indices, col].dropna()\n        \n        if len(values) == 0:\n            continue\n        \n        mediana = values.median()\n        mad = (values - mediana).abs().median()\n        \n        if mad == 0 and PARAMS[\"omitir_mad_cero\"]:\n            continue\n        \n        threshold = PARAMS[\"umbral_desviaciones\"] * PARAMS[\"factor_mad\"] * mad\n        \n        for idx in region_indices:\n            val = df.loc[idx, col]\n            if pd.isna(val):\n                continue\n            \n            if abs(val - mediana) > threshold:\n                anomalias_set.add(df.loc[idx, COL_ID])\n\n# 7. Resultado\nresultado = {\n    \"par\": best_pair,\n    \"anomalias\": sorted(list(anomalias_set))\n}\n\nprint(json.dumps(resultado, ensure_ascii=False))\n",
+ "coste_parametrizacion": 0.078872,
+ "intentos": [
+  {
+   "intento": 1,
+   "coste_usd": 0.078872,
+   "gate": true,
+   "paridad": "35/35",
+   "parametros": [
+    "columna_id",
+    "columna_grupo",
+    "deduplicar",
+    "aparicion_conservada",
+    "aceptar_coma_decimal",
+    "max_fraccion_ausentes",
+    "metodo_correlacion",
+    "correlacion_absoluta",
+    "umbral_desviaciones",
+    "factor_mad",
+    "omitir_mad_cero",
+    "anomalias_por_grupo"
+   ]
+  }
+ ],
+ "linea_base": {
+  "control": 35,
+  "ok": 35,
+  "deriva_vs_grabado": 0
+ },
+ "sha256": {
+  "script": "6bf59226cfd33f05aed69c84816f70d3378e68a6d552fbe62b9b1c9002acdfc4",
+  "bloque": "dfc7c2dd8a59243f3117eaae68734f6b49cfa4f0218ea361afb727846736ddde"
+ }
+}

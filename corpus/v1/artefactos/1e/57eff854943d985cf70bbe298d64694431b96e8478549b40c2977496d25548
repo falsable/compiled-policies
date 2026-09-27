@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Las políticas son esencialmente idénticas. Ambas aplican exactamente los mismos criterios: (0) conservar primera aparición de ids, tratar vacíos como ausentes y comas decimales como números; (1) buscar el par de columnas numéricas (≤20% ausentes) con mayor correlación de Pearson en valor absoluto usando filas completas en ambas; (2) marcar filas anómalas por desviaciones robustas (4.5×MAD×1.4826) desde mediana regional. Las diferencias son solo redaccionales: 'valores no ausentes' vs 'valor presente', 'se aleja' vs 'dista', 'como mucho un 20%' vs 'no pase del 20%'. Ningún umbral, porcentaje, categoría o regla cambia."
+}
+```

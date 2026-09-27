@@ -1,0 +1,99 @@
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Step 1: Load CSV as strings
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Apply strip to all cells
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# Convert empty strings to NaN
+df = df.replace('', np.nan)
+
+# Step 2: Deduplicate by id, keeping last occurrence
+df = df.drop_duplicates(subset='id', keep='last').reset_index(drop=True)
+
+# Step 3: Convert numeric columns
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+for col in numeric_cols:
+    # Replace comma with dot for decimal separator
+    col_data = df[col].copy()
+    # Only replace comma in non-NaN values
+    mask = col_data.notna()
+    col_data[mask] = col_data[mask].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(col_data, errors='coerce')
+
+# Step 4: Find eligible columns (<=20% missing)
+eligible_cols = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / len(df)
+    if frac_na <= 0.20:
+        eligible_cols.append(col)
+
+# Step 5: Calculate correlations between eligible columns
+best_r = -1
+best_pair = None
+
+for col_a, col_b in combinations(eligible_cols, 2):
+    # Get rows where both columns have values
+    mask = (df[col_a].notna()) & (df[col_b].notna())
+    if mask.sum() < 2:
+        continue
+    
+    # Calculate Pearson correlation
+    valid_a = df.loc[mask, col_a].values
+    valid_b = df.loc[mask, col_b].values
+    
+    # Check if there's variance
+    if np.var(valid_a) == 0 or np.var(valid_b) == 0:
+        continue
+    
+    r = np.corrcoef(valid_a, valid_b)[0, 1]
+    
+    if pd.isna(r):
+        continue
+    
+    abs_r = abs(r)
+    if abs_r > best_r:
+        best_r = abs_r
+        best_pair = sorted([col_a, col_b])
+
+# Step 6: Find anomalies per region
+anomalous_ids = set()
+
+for region in df['region'].unique():
+    region_mask = df['region'] == region
+    
+    for col in numeric_cols:
+        # Get values in this region for this column
+        region_values = df.loc[region_mask, col].dropna()
+        
+        if len(region_values) == 0:
+            continue
+        
+        median = np.median(region_values.values)
+        mad = np.median(np.abs(region_values.values - median))
+        
+        if mad == 0:
+            continue
+        
+        threshold = 4.5 * 1.4826 * mad
+        
+        # Find rows in this region where this column deviates more than threshold
+        anomaly_mask = region_mask & df[col].notna() & (np.abs(df[col] - median) > threshold)
+        anomalous_ids.update(df.loc[anomaly_mask, 'id'].tolist())
+
+# Step 7: Sort anomalies
+anomalies = sorted(list(anomalous_ids))
+
+# Step 8: Output JSON
+result = {
+    "par": best_pair,
+    "anomalias": anomalies
+}
+
+print(json.dumps(result, ensure_ascii=False))

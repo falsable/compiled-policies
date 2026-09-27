@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.01,
+  "diferencia": "Dos cambios críticos de criterio: (1) Tasa de IVA: POLÍTICA A aplica 1.21 (21%), POLÍTICA B aplica 1.10 (10%) al cálculo 'round(eur × factor, 2)' para importes '+ IVA'. (2) Ventana temporal de acumulado: POLÍTICA A usa 7 días anteriores, POLÍTICA B usa 14 días anteriores para determinar el aprobador según importe acumulado del mismo proveedor y departamento. Ambos cambios alteran resultados para la mayoría de entradas."
+}
+```

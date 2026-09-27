@@ -1,0 +1,74 @@
+import pandas as pd
+import numpy as np
+import json
+
+# Cargar CSV como texto
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip a todas las celdas
+for col in df.columns:
+    df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+
+# Deduplicar por id (mantener primera aparición)
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Identificar columnas numéricas (excluir id, region, comentario)
+non_numeric_cols = {'id', 'region', 'comentario'}
+numeric_cols = [col for col in df.columns if col not in non_numeric_cols]
+
+# Convertir columnas numéricas
+for col in numeric_cols:
+    # Convertir vacías/espacios a NaN
+    df[col] = df[col].apply(lambda x: np.nan if (isinstance(x, str) and (x == '' or x.isspace())) else x)
+    # Reemplazar comas por puntos (decimales)
+    df[col] = df[col].apply(lambda x: x.replace(',', '.') if isinstance(x, str) else x)
+    # Convertir a float
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Regla 1: Seleccionar columnas elegibles (≤20% ausentes)
+frac_ausentes = {col: df[col].isna().sum() / len(df) for col in numeric_cols}
+elegibles = [col for col in numeric_cols if frac_ausentes[col] <= 0.20]
+
+# Calcular matriz de correlación de Pearson
+corr_matrix = df[elegibles].corr(method='pearson')
+
+# Encontrar par con máximo valor absoluto de correlación
+max_corr = -1
+best_pair = None
+for i in range(len(elegibles)):
+    for j in range(i+1, len(elegibles)):
+        col_a, col_b = elegibles[i], elegibles[j]
+        abs_r = abs(corr_matrix.loc[col_a, col_b])
+        if abs_r > max_corr:
+            max_corr = abs_r
+            best_pair = (col_a, col_b)
+
+par = sorted(best_pair)
+
+# Regla 2: Detección de anomalías por región
+anomalias_indices = set()
+for region, group in df.groupby('region', dropna=False):
+    for col in numeric_cols:
+        values = group[col].dropna()
+        if len(values) == 0:
+            continue
+        
+        # Calcular mediana y MAD (desviación absoluta media)
+        median = values.median()
+        mad = (values - median).abs().median()
+        
+        # Si MAD es 0, esta columna no marca anomalías en esta región
+        if mad == 0:
+            continue
+        
+        # Umbral de anomalía: 4.5 × (MAD × 1.4826)
+        threshold = 4.5 * 1.4826 * mad
+        anomalies_mask = (group[col] - median).abs() > threshold
+        anomalias_indices.update(group[anomalies_mask].index)
+
+# Obtener ids de filas anómalas, ordenados alfabéticamente
+anomalias_ids = sorted(set(df.loc[list(anomalias_indices), 'id'].values))
+
+# Construir y mostrar resultado
+resultado = {'par': par, 'anomalias': anomalias_ids}
+print(json.dumps(resultado, ensure_ascii=False))

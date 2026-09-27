@@ -1,0 +1,65 @@
+```python
+import json
+import pandas as pd
+import numpy as np
+
+# Cargar CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=True)
+df.columns = df.columns.str.strip()
+df['id'] = df['id'].str.strip()
+df['region'] = df['region'].str.strip()
+
+# Deduplicar: conservar solo la última aparición
+df = df.drop_duplicates(subset='id', keep='last').reset_index(drop=True)
+
+# Convertir columnas numéricas
+num_cols = [c for c in df.columns if c not in ['id', 'region']]
+
+for c in num_cols:
+    s = df[c].str.strip().str.replace(',', '.', regex=False)
+    s = s.replace('', np.nan)
+    df[c] = pd.to_numeric(s, errors='coerce')
+
+# Seleccionar columnas elegibles (≤20% ausentes)
+elegibles = [c for c in num_cols if df[c].isna().mean() <= 0.20]
+
+# Calcular matriz de correlación
+corr_matrix = df[elegibles].corr(method='pearson')
+
+# Encontrar el par con máxima correlación absoluta
+max_corr = -1
+best_pair = None
+
+for i in range(len(elegibles)):
+    for j in range(i+1, len(elegibles)):
+        col_a, col_b = elegibles[i], elegibles[j]
+        r = corr_matrix.loc[col_a, col_b]
+        if pd.notna(r) and abs(r) > max_corr:
+            max_corr = abs(r)
+            best_pair = [col_a, col_b]
+
+best_pair = sorted(best_pair)
+
+# Detectar anomalías por región
+anomalias_mask = pd.Series(False, index=df.index)
+
+for c in num_cols:
+    med = df.groupby('region')[c].transform('median')
+    mad = df.groupby('region')[c].transform(
+        lambda s: (s - s.median()).abs().median()
+    )
+    escala = mad * 1.4826
+    
+    flag = df[c].notna() & (mad > 0) & ((df[c] - med).abs() > 4.5 * escala)
+    anomalias_mask = anomalias_mask | flag
+
+# Recopilar ids anómalos
+anomalias = sorted(df.loc[anomalias_mask, 'id'].unique().tolist())
+
+# Imprimir resultado
+resultado = {
+    'par': best_pair,
+    'anomalias': anomalias
+}
+print(json.dumps(resultado, ensure_ascii=False))
+```

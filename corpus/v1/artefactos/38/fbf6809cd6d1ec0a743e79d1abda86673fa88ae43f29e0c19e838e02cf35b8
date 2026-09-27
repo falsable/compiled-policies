@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.01,
+  "diferencia": "La Regla 1 de Solicitudes diferencia en la excepción: POLÍTICA A requiere categoría \"seguridad\" y urgente para escalar; POLÍTICA B requiere categoría \"hardware\" y urgente para escalar. Un programa que funciona correctamente en A producirá resultados incorrectos en B para solicitudes urgentes de proveedores no homologados, según su categoría."
+}
+```

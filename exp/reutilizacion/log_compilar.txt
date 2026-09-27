@@ -1,0 +1,5 @@
+[datos] candidato 0: 5/5 ($0.114)
+bloque datos: validación 5/5, compilación $0.11
+[negocio] candidato 0: 5/5 ($0.257)
+bloque negocio: validación 5/5, compilación $0.26
+gasto: $0.37

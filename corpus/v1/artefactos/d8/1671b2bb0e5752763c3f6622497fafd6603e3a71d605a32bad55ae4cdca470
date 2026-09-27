@@ -1,0 +1,178 @@
+import json
+import re
+from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
+
+# Cargar entradas.json
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = {k: Decimal(str(v)) for k, v in data['tipos_cambio'].items()}
+presupuesto = {k: Decimal(str(v)) for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+# Ordenar entradas por (fecha, id)
+entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+def parse_importe(texto, tipos_cambio):
+    """Parsea un importe en texto y retorna el total en EUR (Decimal)."""
+    # Detectar moneda
+    if 'USD' in texto:
+        moneda = 'USD'
+    elif 'GBP' in texto:
+        moneda = 'GBP'
+    else:
+        moneda = 'EUR'
+    
+    # Detectar IVA
+    tiene_iva = '+ IVA' in texto
+    
+    # Extraer número con regex
+    match = re.search(r'[\d.,]+', texto)
+    if not match:
+        raise ValueError(f"No se encontró número en: {texto}")
+    
+    numero_str = match.group()
+    
+    # Normalizar según moneda
+    if moneda == 'EUR':
+        # Formato español: si tiene comas, quitar puntos y cambiar coma por punto
+        if ',' in numero_str:
+            numero_str = numero_str.replace('.', '').replace(',', '.')
+    else:  # USD o GBP
+        # Formato anglosajón: quitar comas
+        numero_str = numero_str.replace(',', '')
+    
+    numero = Decimal(numero_str)
+    
+    # Convertir a EUR
+    eur = numero * tipos_cambio[moneda]
+    eur = eur.quantize(Decimal('0.01'), ROUND_HALF_UP)
+    
+    # Aplicar IVA si es necesario
+    if tiene_iva:
+        total = eur * Decimal('1.21')
+        total = total.quantize(Decimal('0.01'), ROUND_HALF_UP)
+    else:
+        total = eur
+    
+    return total
+
+# Procesar entradas
+decisiones = {}
+registro = {}
+
+for entrada in entradas_ordenadas:
+    if entrada['tipo'] == 'solicitud':
+        id_solicitud = entrada['id']
+        fecha = entrada['fecha']
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe_texto = entrada['importe']
+        
+        total = parse_importe(importe_texto, tipos_cambio)
+        
+        # REGLA 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        else:
+            # REGLA 2: Presupuesto insuficiente
+            if total > presupuesto[departamento]:
+                estado = 'escalada'
+                aprobador = 'finanzas'
+                motivo = 'sin_presupuesto'
+            else:
+                # REGLA 3: Aprobada
+                estado = 'aprobada'
+                motivo = None
+                
+                # Descontar presupuesto
+                presupuesto[departamento] = (presupuesto[departamento] - total).quantize(Decimal('0.01'), ROUND_HALF_UP)
+                
+                # Calcular acumulado
+                acumulado = total
+                fecha_actual = datetime.strptime(fecha, '%Y-%m-%d').date()
+                
+                for id_prev, reg_prev in registro.items():
+                    if (reg_prev['estado'] == 'aprobada' and 
+                        reg_prev['proveedor'] == proveedor and 
+                        reg_prev['departamento'] == departamento):
+                        
+                        fecha_prev = datetime.strptime(reg_prev['fecha'], '%Y-%m-%d').date()
+                        dias_diff = (fecha_actual - fecha_prev).days
+                        if 0 <= dias_diff <= 7:
+                            acumulado += reg_prev['total']
+                
+                # Determinar aprobador según acumulado
+                if acumulado <= Decimal('500'):
+                    aprobador = 'auto'
+                elif acumulado <= Decimal('5000'):
+                    aprobador = 'jefe_departamento'
+                else:
+                    aprobador = 'direccion'
+        
+        # REGLA 4: revision_it
+        if categoria == 'software' and (estado == 'aprobada' or estado == 'escalada'):
+            revision_it = True
+        else:
+            revision_it = False
+        
+        # Guardar en registro
+        registro[id_solicitud] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it,
+            'total': total,
+            'fecha': fecha,
+            'proveedor': proveedor,
+            'departamento': departamento
+        }
+        
+        # Guardar en decisiones
+        decisiones[id_solicitud] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+    
+    elif entrada['tipo'] == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        if referencia in registro:
+            # Modificar la solicitud referenciada
+            registro[referencia]['estado'] = 'cancelada'
+            registro[referencia]['aprobador'] = None
+            registro[referencia]['motivo'] = 'cancelada_por_solicitante'
+            registro[referencia]['revision_it'] = False
+            
+            # Actualizar decisiones
+            decisiones[referencia] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False
+            }
+
+# Construir presupuesto final
+presupuesto_final = {k: float(v) for k, v in presupuesto.items()}
+
+# Construir resultado
+resultado = {
+    'decisiones': decisiones,
+    'presupuesto_final': presupuesto_final
+}
+
+# Imprimir JSON
+print(json.dumps(resultado, ensure_ascii=False, indent=2))

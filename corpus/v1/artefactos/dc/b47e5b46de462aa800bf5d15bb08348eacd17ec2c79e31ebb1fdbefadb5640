@@ -1,0 +1,93 @@
+TAREA:
+En el CSV adjunto encuentra el estado final {"par": [col_a, col_b], "anomalias": [ids]} (listas ordenadas) aplicando EXACTAMENTE estas reglas:
+0. Si un 'id' aparece repetido, quédate solo con su PRIMERA aparición. Las celdas vacías son valores ausentes. Algunos valores numéricos usan coma decimal (p. ej. "12,5"): son números.
+1. Relación principal: entre las columnas numéricas con como mucho un 20 % de valores ausentes, el par con mayor correlación de Pearson en valor absoluto, calculada con las filas donde ambas columnas tienen valor.
+2. Filas anómalas: una fila es anómala si alguno de sus valores no ausentes, en CUALQUIER columna numérica, se aleja más de 4.5 desviaciones robustas (MAD × 1.4826) de la mediana de esa columna calculada DENTRO DE SU 'region' (ignorando ausentes). Si en una region la MAD de una columna es 0, esa columna no marca anomalías en esa region.
+
+ENTRADAS (en el directorio actual):
+Archivo `datos.csv`: 1504 filas, columnas ['id', 'region', 'humedad', 'tiempo_entrega', 'precio_medio', 'conversiones', 'comentario', 'coste_envio', 'tickets_soporte', 'stock', 'incidencias', 'devoluciones', 'ventas', 'horas_extra', 'visitas', 'averias'].
+Primeras 5 filas:
+id,region,humedad,tiempo_entrega,precio_medio,conversiones,comentario,coste_envio,tickets_soporte,stock,incidencias,devoluciones,ventas,horas_extra,visitas,averias
+r00000,norte,294.761,477.589,809.616,908.837,N/D,546.943,549.124,358.171,,477.19,552.428,220.919,440.799,0.0
+r00001,sur,284.473,272.798,732.87,674.473,dato validado,451.094,992.066,327.916,114.611,326.341,485.447,224.837,,0.0
+r00002,sur,233.654,477.824,679.606,677.761,pendiente de cierre,296.679,737.574,,104.258,441.362,334.97,258.094,"414,972",2.0
+r00003,sur,276.5,293.751,798.077,771.768,ok,367.965,808.151,323.107,121.937,357.858,583.202,271.992,"426,244",0.0
+r00004,oeste,285.94,502.844,1058.912,733.326,ver nota 3b,432.596,940.462,338.501,119.526,534.92,830.7,210.895,468.381,0.0
+
+
+PLAN A SEGUIR (escrito por el planificador):
+{
+ "objetivo": "Leer datos.csv y producir el objeto JSON {\"par\": [col_a, col_b], \"anomalias\": [ids]} donde 'par' son las dos columnas numéricas elegibles (≤20 % ausentes) con mayor |correlación de Pearson| (pairwise sobre filas con ambos valores), ordenadas alfabéticamente, y 'anomalias' es la lista ordenada de ids de filas (tras deduplicar) con algún valor a más de 4.5 × MAD × 1.4826 de la mediana de su columna dentro de su region.",
+ "criterios": [
+  "Deduplicación: si un 'id' se repite, conservar solo la PRIMERA aparición en el orden del archivo (drop_duplicates(subset='id', keep='first')). Todo lo posterior se calcula sobre los datos deduplicados.",
+  "Ausentes: celdas vacías son NaN. Leer todo como texto (dtype=str, keep_default_na=False) y tratar '' (tras strip) como ausente.",
+  "Coma decimal: valores como \"414,972\" son números: reemplazar ',' por '.' antes de convertir a float. No hay separador de miles.",
+  "Columnas numéricas: toda columna excepto 'id' y 'region' cuyos valores no ausentes sean (casi) todos convertibles a número tras normalizar la coma. 'comentario' es texto (valores como 'N/D', 'ok', 'dato validado') y NO es numérica; 'N/D' en comentario no importa. Criterio sugerido: columna numérica si ≥90 % de sus no ausentes convierten; los no convertibles en columnas numéricas pasan a NaN (registrar cuántos).",
+  "Regla 1 – elegibilidad: fracción de ausentes = n_NaN / n_filas_deduplicadas ≤ 0.20 (inclusive).",
+  "Regla 1 – correlación: para cada par de columnas elegibles, Pearson calculado solo con filas donde ambas tienen valor (pairwise, como DataFrame.corr(method='pearson')). Elegir el máximo |r|. Ignorar pares con desviación nula o NaN. Devolver el par ordenado alfabéticamente.",
+  "Regla 2 – por region y por cada columna numérica (TODAS las numéricas, no solo las elegibles de la regla 1, incluyendo 'averias' y columnas con muchos ausentes): mediana m y MAD = mediana(|x - m|) sobre valores no ausentes de esa region. Escala = 1.4826 × MAD. Si MAD == 0 (o la region/columna no tiene valores), esa columna no marca anomalías en esa region.",
+  "Regla 2 – anomalía: |x - m| > 4.5 × escala (estrictamente mayor). Una fila es anómala si ocurre en al menos una columna. Valores ausentes nunca marcan anomalía.",
+  "Region: agrupar por el valor literal de 'region' (tras strip). Si hay region vacía, tratarla como su propio grupo e informarlo.",
+  "Salida: 'anomalias' es lista de ids únicos ordenada ascendentemente (orden de string); 'par' lista de 2 nombres ordenada."
+ ],
+ "pasos": [
+  {
+   "n": 1,
+   "accion": "Cargar CSV",
+   "detalle": "pandas.read_csv('datos.csv', dtype=str, keep_default_na=False). Aplicar strip a todas las celdas. Imprimir shape (esperado 1504 filas antes de deduplicar)."
+  },
+  {
+   "n": 2,
+   "accion": "Deduplicar por id",
+   "detalle": "df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True). Imprimir número de filas eliminadas."
+  },
+  {
+   "n": 3,
+   "accion": "Detectar y convertir columnas numéricas",
+   "detalle": "Para cada columna distinta de id/region: s = col.replace('', NaN); t = s.str.replace(',', '.', regex=False); num = pd.to_numeric(t, errors='coerce'). Si num.notna().sum() >= 0.9 * s.notna().sum() y s.notna().sum()>0, es numérica: sustituir la columna por num. Imprimir lista de columnas numéricas y nº de valores no convertibles por columna (debe ser 0 o casi 0)."
+  },
+  {
+   "n": 4,
+   "accion": "Seleccionar columnas elegibles (regla 1)",
+   "detalle": "Para cada columna numérica, frac_na = isna().mean(). Elegibles: frac_na <= 0.20. Imprimir frac_na de todas."
+  },
+  {
+   "n": 5,
+   "accion": "Calcular par de mayor |Pearson|",
+   "detalle": "C = df[elegibles].corr(method='pearson') (pairwise). Recorrer i<j, saltar NaN, tomar máximo |r|. Imprimir top-5 pares con r para detectar empates. par = sorted([a, b])."
+  },
+  {
+   "n": 6,
+   "accion": "Calcular anomalías por region (regla 2)",
+   "detalle": "Máscara global = False. Para cada region g y cada columna numérica c: x = valores de c en g sin NaN; si vacío continuar; m = median(x); mad = median(|x - m|); si mad == 0 continuar; esc = 1.4826*mad; marcar filas de g con x no NaN y |x - m| > 4.5*esc. OR a la máscara global."
+  },
+  {
+   "n": 7,
+   "accion": "Construir e imprimir resultado",
+   "detalle": "anomalias = sorted(set(df.loc[mask,'id'])). Imprimir json.dumps({'par': par, 'anomalias': anomalias}, ensure_ascii=False)."
+  }
+ ],
+ "verificacion": [
+  "Tras deduplicar, df['id'].is_unique es True.",
+  "'comentario', 'id' y 'region' no están entre las columnas numéricas; las demás 13 columnas sí lo son (humedad, tiempo_entrega, precio_medio, conversiones, coste_envio, tickets_soporte, stock, incidencias, devoluciones, ventas, horas_extra, visitas, averias) salvo que los datos indiquen otra cosa (imprimir motivo).",
+  "Las columnas numéricas tienen dtype float y valores con coma como '414,972' se convirtieron a 414.972 (comprobar un ejemplo, p. ej. fila r00002 visitas).",
+  "Hay al menos 2 columnas elegibles; el par tiene 2 nombres distintos, ambos elegibles, y |r| del par es el máximo (comparar con los demás; avisar si hay empate con diferencia < 1e-12).",
+  "Recalcular la correlación del par manualmente con numpy sobre filas con ambos valores y comprobar que coincide con la de pandas.",
+  "Todos los ids de 'anomalias' existen en df, son únicos y la lista está ordenada; imprimir cuántas anomalías hay y cuántas columnas/regiones se saltaron por MAD=0.",
+  "Para un id anómalo de muestra, imprimir la columna, valor, mediana y escala que lo marcaron para comprobar manualmente."
+ ],
+ "riesgos": [
+  "No deduplicar o quedarse con la última aparición en vez de la primera.",
+  "Leer con dtype por defecto: las columnas con coma decimal quedarían como object y se excluirían o darían NaN; normalizar siempre la coma.",
+  "Tratar 'comentario' como numérica, o convertir 'N/D' a ausente de una columna numérica equivocadamente.",
+  "Calcular la fracción de ausentes antes de convertir (strings no convertibles contados como válidos) o antes de deduplicar.",
+  "Usar solo filas completas (listwise) en lugar de pairwise para Pearson.",
+  "Comparar r con signo en lugar de valor absoluto.",
+  "En la regla 2, usar solo las columnas elegibles de la regla 1 o calcular mediana/MAD global en vez de por region.",
+  "Olvidar el factor 1.4826, usar >= en lugar de >, o usar scipy.stats.median_abs_deviation con scale='normal' además de multiplicar (doble escalado).",
+  "Columnas discretas como 'averias' con muchos ceros tendrán MAD=0 en alguna region: deben saltarse, no dividir por cero ni marcar todo como anómalo.",
+  "Devolver el par sin ordenar o ids sin ordenar; imprimir tipos numpy no serializables en JSON."
+ ]
+}
+
+Escribe el programa. Debe leer los archivos del directorio actual e imprimir por stdout SOLO el JSON del estado final.

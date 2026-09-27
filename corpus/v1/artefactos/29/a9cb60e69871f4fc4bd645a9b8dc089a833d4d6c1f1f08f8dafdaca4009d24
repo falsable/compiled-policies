@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.0,
+  "diferencia": "En la regla 3 (solicitudes aprobadas), los umbrales del IMPORTE ACUMULADO para determinar el aprobador son distintos. POLÍTICA A: ≤500€ auto, ≤5000€ jefe_departamento, >5000€ direccion. POLÍTICA B: ≤750€ auto, ≤4000€ jefe_departamento, >4000€ direccion. Esto produce resultados diferentes para cualquier acumulado entre 501-750€ (auto vs jefe_departamento) y entre 4001-5000€ (jefe_departamento vs direccion)."
+}
+```

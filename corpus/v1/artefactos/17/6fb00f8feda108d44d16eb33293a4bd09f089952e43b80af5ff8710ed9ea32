@@ -1,0 +1,1242 @@
+TAREA:
+Aplica la política de compras a las entradas y devuelve el estado final: {"decisiones": {id_solicitud: {"estado", "aprobador", "motivo", "revision_it"}}, "presupuesto_final": {departamento: euros}}.
+
+ENTRADAS:
+Archivo `entradas.json` con las claves ['politica', 'proveedores_homologados', 'tipos_cambio', 'presupuesto_inicial', 'entradas']. Contenido:
+{
+ "politica": "POLÍTICA DE COMPRAS\nOrden: procesa las entradas por fecha y, a igual fecha, por id (orden alfabético). El lote NO viene ordenado.\nHay dos tipos de entrada: \"solicitud\" y \"cancelacion\".\n\nImportes: cada solicitud trae su importe en EUR, USD o GBP.\n- EUR usa formato español (1.234,56) o plano (1234.56). USD y GBP usan formato anglosajón (1,234.56).\n- Convierte a EUR con \"tipos_cambio\" (EUR por unidad): eur = round(importe × tipo, 2).\n- Si el texto dice \"+ IVA\", el importe con IVA es round(eur × 1.21, 2); si dice \"(IVA incluido)\", ya lo es.\nTodas las reglas usan el importe con IVA en EUR.\n\nSolicitudes (en este orden):\n1. Proveedor que no está en \"proveedores_homologados\" → estado \"rechazada\", motivo \"proveedor_no_homologado\".\n   Excepción: categoría \"seguridad\" y urgente → estado \"escalada\", aprobador \"direccion\", motivo \"excepcion_seguridad\".\n2. Importe mayor que el presupuesto restante del departamento → estado \"escalada\", aprobador \"finanzas\",\n   motivo \"sin_presupuesto\".\n3. En otro caso → estado \"aprobada\", motivo null, y descuenta el importe del presupuesto del departamento.\n   Aprobador según el IMPORTE ACUMULADO: el de esta solicitud más el de las solicitudes ya procesadas que\n   sigan aprobadas, del mismo proveedor y departamento, con fecha dentro de los 7 días anteriores\n   (incluida la misma fecha). Acumulado ≤ 500 € → \"auto\"; ≤ 5000 € → \"jefe_departamento\"; > 5000 € → \"direccion\".\n   (La regla 2 usa solo el importe de esta solicitud.)\n4. revision_it = true si la categoría es \"software\" y el estado es \"aprobada\" o \"escalada\".\n\nCancelaciones: anulan la solicitud \"referencia\". Esa solicitud queda con estado \"cancelada\", aprobador null,\nmotivo \"cancelada_por_solicitante\", revision_it false. Si estaba aprobada, su importe vuelve al presupuesto\ndel departamento. Las cancelaciones no aparecen en \"decisiones\".\n\nRedondeo a 2 decimales.",
+ "proveedores_homologados": [
+  "Acme Suministros",
+  "Iberdata",
+  "Norte Oficina",
+  "TecnoLevante",
+  "SegurPro"
+ ],
+ "tipos_cambio": {
+  "USD": 0.92,
+  "GBP": 1.17,
+  "EUR": 1.0
+ },
+ "presupuesto_inicial": {
+  "marketing": 35100.0,
+  "operaciones": 33200.0,
+  "it": 33300.0,
+  "rrhh": 28300.0
+ },
+ "entradas": [
+  {
+   "id": "SC-303-062",
+   "tipo": "solicitud",
+   "fecha": "2026-09-01",
+   "departamento": "operaciones",
+   "proveedor": "Global Bargains",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "1.589,26 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-091",
+   "tipo": "solicitud",
+   "fecha": "2026-09-18",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "1,773.27 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-087",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "operaciones",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "62.73 EUR + IVA"
+  },
+  {
+   "id": "CX-303-00",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-11",
+   "referencia": "SC-303-015"
+  },
+  {
+   "id": "SC-303-038",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "it",
+   "proveedor": "Acme Suministros",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "825.22 € + IVA"
+  },
+  {
+   "id": "SC-303-021",
+   "tipo": "solicitud",
+   "fecha": "2026-09-17",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "2,354.45 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-083",
+   "tipo": "solicitud",
+   "fecha": "2026-09-09",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "102.12 USD + IVA"
+  },
+  {
+   "id": "SC-303-076",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "marketing",
+   "proveedor": "Iberdata",
+   "categoria": "material_oficina",
+   "urgente": true,
+   "importe": "122,17 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-012",
+   "tipo": "solicitud",
+   "fecha": "2026-09-16",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "software",
+   "urgente": true,
+   "importe": "666.04 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-033",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "operaciones",
+   "proveedor": "TecnoLevante",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "1.499,94 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-002",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "marketing",
+   "proveedor": "Norte Oficina",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "1563.98 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-052",
+   "tipo": "solicitud",
+   "fecha": "2026-09-16",
+   "departamento": "rrhh",
+   "proveedor": "SegurPro",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "1851.48 € + IVA"
+  },
+  {
+   "id": "CX-303-11",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-19",
+   "referencia": "SC-303-016"
+  },
+  {
+   "id": "SC-303-078",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "it",
+   "proveedor": "TecnoLevante",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "191.55 GBP + IVA"
+  },
+  {
+   "id": "SC-303-101",
+   "tipo": "solicitud",
+   "fecha": "2026-09-16",
+   "departamento": "rrhh",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "439.69 USD + IVA"
+  },
+  {
+   "id": "SC-303-025",
+   "tipo": "solicitud",
+   "fecha": "2026-09-11",
+   "departamento": "marketing",
+   "proveedor": "Iberdata",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "1,437.88 GBP (IVA incluido)"
+  },
+  {
+   "id": "CX-303-41",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-03",
+   "referencia": "SC-303-077"
+  },
+  {
+   "id": "SC-303-010",
+   "tipo": "solicitud",
+   "fecha": "2026-09-12",
+   "departamento": "rrhh",
+   "proveedor": "TecnoLevante",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "389,41 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-065",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "rrhh",
+   "proveedor": "TecnoLevante",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "1.348,02 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-086",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "marketing",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "570.88 GBP + IVA"
+  },
+  {
+   "id": "SC-303-063",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "it",
+   "proveedor": "Acme Suministros",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "135,57 € + IVA"
+  },
+  {
+   "id": "SC-303-040",
+   "tipo": "solicitud",
+   "fecha": "2026-09-13",
+   "departamento": "it",
+   "proveedor": "Iberdata",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "2.522,19 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-032",
+   "tipo": "solicitud",
+   "fecha": "2026-09-18",
+   "departamento": "it",
+   "proveedor": "SegurPro",
+   "categoria": "formacion",
+   "urgente": true,
+   "importe": "1,627.96 USD + IVA"
+  },
+  {
+   "id": "CX-303-60",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-11",
+   "referencia": "SC-303-099"
+  },
+  {
+   "id": "SC-303-100",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "it",
+   "proveedor": "TecnoLevante",
+   "categoria": "hardware",
+   "urgente": true,
+   "importe": "120,96 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-061",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "rrhh",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "2.640,38 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-050",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "marketing",
+   "proveedor": "TecnoLevante",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "344.49 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-060",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "rrhh",
+   "proveedor": "Iberdata",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "190.43 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-303-039",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "material_oficina",
+   "urgente": true,
+   "importe": "714.19 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-303-088",
+   "tipo": "solicitud",
+   "fecha": "2026-09-18",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "209.33 € + IVA"
+  },
+  {
+   "id": "SC-303-089",
+   "tipo": "solicitud",
+   "fecha": "2026-09-18",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "148,90 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-046",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "235,58 € + IVA"
+  },
+  {
+   "id": "SC-303-036",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "operaciones",
+   "proveedor": "Global Bargains",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "1.001,10 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-081",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "marketing",
+   "proveedor": "SegurPro",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "218.09 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-017",
+   "tipo": "solicitud",
+   "fecha": "2026-09-13",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": true,
+   "importe": "237.03 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-020",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "it",
+   "proveedor": "SegurPro",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "636,53 € + IVA"
+  },
+  {
+   "id": "CX-303-51",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-08",
+   "referencia": "SC-303-084"
+  },
+  {
+   "id": "SC-303-098",
+   "tipo": "solicitud",
+   "fecha": "2026-09-11",
+   "departamento": "rrhh",
+   "proveedor": "Iberdata",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "116.38 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-303-059",
+   "tipo": "solicitud",
+   "fecha": "2026-09-01",
+   "departamento": "marketing",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "3,906.29 USD + IVA"
+  },
+  {
+   "id": "SC-303-085",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "marketing",
+   "proveedor": "SegurPro",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "3.212,08 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-030",
+   "tipo": "solicitud",
+   "fecha": "2026-09-01",
+   "departamento": "rrhh",
+   "proveedor": "Iberdata",
+   "categoria": "material_oficina",
+   "urgente": true,
+   "importe": "2328.18 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-048",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "rrhh",
+   "proveedor": "Global Bargains",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "2,082.73 GBP + IVA"
+  },
+  {
+   "id": "SC-303-090",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "operaciones",
+   "proveedor": "Acme Suministros",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "2.302,58 € + IVA"
+  },
+  {
+   "id": "SC-303-102",
+   "tipo": "solicitud",
+   "fecha": "2026-09-13",
+   "departamento": "rrhh",
+   "proveedor": "SegurPro",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "2,590.83 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-303-045",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "rrhh",
+   "proveedor": "TecnoLevante",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "277,80 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-077",
+   "tipo": "solicitud",
+   "fecha": "2026-09-01",
+   "departamento": "marketing",
+   "proveedor": "Acme Suministros",
+   "categoria": "hardware",
+   "urgente": true,
+   "importe": "194.22 € + IVA"
+  },
+  {
+   "id": "SC-303-037",
+   "tipo": "solicitud",
+   "fecha": "2026-09-11",
+   "departamento": "marketing",
+   "proveedor": "Acme Suministros",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "279.36 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-103",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "rrhh",
+   "proveedor": "Global Bargains",
+   "categoria": "hardware",
+   "urgente": true,
+   "importe": "1137.48 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-084",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "270.60 EUR (IVA incluido)"
+  },
+  {
+   "id": "CX-303-30",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-14",
+   "referencia": "SC-303-063"
+  },
+  {
+   "id": "SC-303-080",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "341,21 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-104",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "rrhh",
+   "proveedor": "Norte Oficina",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "1.278,92 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-093",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "rrhh",
+   "proveedor": "TecnoLevante",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "981.14 € + IVA"
+  },
+  {
+   "id": "CX-303-50",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-21",
+   "referencia": "SC-303-092"
+  },
+  {
+   "id": "CX-303-21",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-08",
+   "referencia": "SC-303-043"
+  },
+  {
+   "id": "CX-303-01",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-16",
+   "referencia": "SC-303-002"
+  },
+  {
+   "id": "SC-303-016",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "marketing",
+   "proveedor": "Global Bargains",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "67.27 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-001",
+   "tipo": "solicitud",
+   "fecha": "2026-09-17",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "925.85 USD + IVA"
+  },
+  {
+   "id": "SC-303-092",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "marketing",
+   "proveedor": "Iberdata",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "98.48 GBP + IVA"
+  },
+  {
+   "id": "SC-303-018",
+   "tipo": "solicitud",
+   "fecha": "2026-09-01",
+   "departamento": "rrhh",
+   "proveedor": "Global Bargains",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "147,97 EUR + IVA"
+  },
+  {
+   "id": "SC-303-047",
+   "tipo": "solicitud",
+   "fecha": "2026-09-19",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "1,347.28 USD + IVA"
+  },
+  {
+   "id": "SC-303-054",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "marketing",
+   "proveedor": "TecnoLevante",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "390.10 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-075",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "marketing",
+   "proveedor": "SegurPro",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "2.985,36 € + IVA"
+  },
+  {
+   "id": "SC-303-070",
+   "tipo": "solicitud",
+   "fecha": "2026-09-07",
+   "departamento": "marketing",
+   "proveedor": "Norte Oficina",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "3,431.40 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-013",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "operaciones",
+   "proveedor": "Acme Suministros",
+   "categoria": "formacion",
+   "urgente": true,
+   "importe": "389.71 USD + IVA"
+  },
+  {
+   "id": "SC-303-053",
+   "tipo": "solicitud",
+   "fecha": "2026-09-09",
+   "departamento": "operaciones",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "1.662,98 EUR + IVA"
+  },
+  {
+   "id": "SC-303-043",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "782,35 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-110",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "it",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "material_oficina",
+   "urgente": true,
+   "importe": "1.526,63 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-027",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "operaciones",
+   "proveedor": "Acme Suministros",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "906.31 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-041",
+   "tipo": "solicitud",
+   "fecha": "2026-09-12",
+   "departamento": "marketing",
+   "proveedor": "Acme Suministros",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "299,92 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-035",
+   "tipo": "solicitud",
+   "fecha": "2026-09-12",
+   "departamento": "it",
+   "proveedor": "TecnoLevante",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "1.361,72 € + IVA"
+  },
+  {
+   "id": "SC-303-111",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "rrhh",
+   "proveedor": "Acme Suministros",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "172.48 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-034",
+   "tipo": "solicitud",
+   "fecha": "2026-09-18",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "599,12 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-073",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "it",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "332,37 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-044",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "operaciones",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "173.26 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-014",
+   "tipo": "solicitud",
+   "fecha": "2026-09-09",
+   "departamento": "operaciones",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "612.94 USD + IVA"
+  },
+  {
+   "id": "SC-303-005",
+   "tipo": "solicitud",
+   "fecha": "2026-09-14",
+   "departamento": "operaciones",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "72,05 € + IVA"
+  },
+  {
+   "id": "SC-303-051",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "rrhh",
+   "proveedor": "Iberdata",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "206.76 € + IVA"
+  },
+  {
+   "id": "SC-303-082",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "it",
+   "proveedor": "TecnoLevante",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "846,95 € (IVA incluido)"
+  },
+  {
+   "id": "CX-303-20",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-07",
+   "referencia": "SC-303-045"
+  },
+  {
+   "id": "SC-303-071",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "it",
+   "proveedor": "TecnoLevante",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "111,71 EUR + IVA"
+  },
+  {
+   "id": "SC-303-022",
+   "tipo": "solicitud",
+   "fecha": "2026-09-17",
+   "departamento": "marketing",
+   "proveedor": "Norte Oficina",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "270,88 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-107",
+   "tipo": "solicitud",
+   "fecha": "2026-09-18",
+   "departamento": "rrhh",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "224.68 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-303-064",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "131.37 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-106",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "marketing",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "2.864,46 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-031",
+   "tipo": "solicitud",
+   "fecha": "2026-09-19",
+   "departamento": "operaciones",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "2515.33 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-068",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "1,610.14 GBP + IVA"
+  },
+  {
+   "id": "CX-303-10",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-25",
+   "referencia": "SC-303-026"
+  },
+  {
+   "id": "SC-303-066",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "it",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "381.38 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-096",
+   "tipo": "solicitud",
+   "fecha": "2026-09-07",
+   "departamento": "rrhh",
+   "proveedor": "Iberdata",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "344.80 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-303-072",
+   "tipo": "solicitud",
+   "fecha": "2026-09-13",
+   "departamento": "marketing",
+   "proveedor": "Iberdata",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "94.87 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-007",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "1996.77 EUR + IVA"
+  },
+  {
+   "id": "SC-303-057",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "it",
+   "proveedor": "Iberdata",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "197.19 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-095",
+   "tipo": "solicitud",
+   "fecha": "2026-09-01",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "519.36 € + IVA"
+  },
+  {
+   "id": "SC-303-097",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "rrhh",
+   "proveedor": "SegurPro",
+   "categoria": "material_oficina",
+   "urgente": true,
+   "importe": "3.264,16 € + IVA"
+  },
+  {
+   "id": "SC-303-099",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "marketing",
+   "proveedor": "TecnoLevante",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "3,369.35 USD + IVA"
+  },
+  {
+   "id": "SC-303-056",
+   "tipo": "solicitud",
+   "fecha": "2026-09-07",
+   "departamento": "it",
+   "proveedor": "Global Bargains",
+   "categoria": "software",
+   "urgente": true,
+   "importe": "2.082,73 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-042",
+   "tipo": "solicitud",
+   "fecha": "2026-09-11",
+   "departamento": "operaciones",
+   "proveedor": "TecnoLevante",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "73.00 USD + IVA"
+  },
+  {
+   "id": "SC-303-008",
+   "tipo": "solicitud",
+   "fecha": "2026-09-14",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "555.09 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-000",
+   "tipo": "solicitud",
+   "fecha": "2026-09-14",
+   "departamento": "operaciones",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "3,071.67 USD + IVA"
+  },
+  {
+   "id": "SC-303-006",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "marketing",
+   "proveedor": "Global Bargains",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "2,213.73 GBP + IVA"
+  },
+  {
+   "id": "SC-303-079",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "marketing",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "109.35 USD (IVA incluido)"
+  },
+  {
+   "id": "CX-303-40",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-24",
+   "referencia": "SC-303-068"
+  },
+  {
+   "id": "SC-303-024",
+   "tipo": "solicitud",
+   "fecha": "2026-09-14",
+   "departamento": "marketing",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "261.84 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-019",
+   "tipo": "solicitud",
+   "fecha": "2026-09-13",
+   "departamento": "marketing",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "2735.95 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-026",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "it",
+   "proveedor": "Iberdata",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "374.33 USD + IVA"
+  },
+  {
+   "id": "SC-303-009",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "it",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "3.445,65 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-049",
+   "tipo": "solicitud",
+   "fecha": "2026-09-07",
+   "departamento": "operaciones",
+   "proveedor": "TecnoLevante",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "829.17 USD + IVA"
+  },
+  {
+   "id": "SC-303-011",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": true,
+   "importe": "201.67 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-094",
+   "tipo": "solicitud",
+   "fecha": "2026-09-14",
+   "departamento": "rrhh",
+   "proveedor": "Norte Oficina",
+   "categoria": "hardware",
+   "urgente": true,
+   "importe": "65.81 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-303-058",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "it",
+   "proveedor": "Acme Suministros",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "2.423,08 EUR + IVA"
+  },
+  {
+   "id": "SC-303-069",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "rrhh",
+   "proveedor": "Global Bargains",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "90.24 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-028",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "rrhh",
+   "proveedor": "Iberdata",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "2,291.61 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-303-029",
+   "tipo": "solicitud",
+   "fecha": "2026-09-01",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "formacion",
+   "urgente": true,
+   "importe": "3661.29 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-067",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "operaciones",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "528.87 € + IVA"
+  },
+  {
+   "id": "SC-303-015",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "rrhh",
+   "proveedor": "TecnoLevante",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "266,27 € (IVA incluido)"
+  },
+  {
+   "id": "CX-303-61",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-26",
+   "referencia": "SC-303-111"
+  },
+  {
+   "id": "SC-303-055",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "2.562,44 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-303-109",
+   "tipo": "solicitud",
+   "fecha": "2026-09-07",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "270,91 € (IVA incluido)"
+  },
+  {
+   "id": "CX-303-31",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-08",
+   "referencia": "SC-303-056"
+  },
+  {
+   "id": "SC-303-004",
+   "tipo": "solicitud",
+   "fecha": "2026-09-17",
+   "departamento": "operaciones",
+   "proveedor": "Iberdata",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "162,29 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-003",
+   "tipo": "solicitud",
+   "fecha": "2026-09-13",
+   "departamento": "rrhh",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "192,95 € + IVA"
+  },
+  {
+   "id": "SC-303-105",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "380,11 € (IVA incluido)"
+  },
+  {
+   "id": "SC-303-108",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "operaciones",
+   "proveedor": "Acme Suministros",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "1.485,10 € + IVA"
+  },
+  {
+   "id": "SC-303-074",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "marketing",
+   "proveedor": "Acme Suministros",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "182,61 € + IVA"
+  },
+  {
+   "id": "SC-303-023",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "it",
+   "proveedor": "TecnoLevante",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "1268.06 € + IVA"
+  }
+ ]
+}
+
+Formato obligatorio del plan (JSON):
+{
+  "objetivo": "qué estado final hay que producir",
+  "criterios": ["cada regla o criterio que el programa debe aplicar, con sus casos límite"],
+  "pasos": [{"n": 1, "accion": "…", "detalle": "…"}],
+  "verificacion": ["comprobaciones que el programa debe hacer antes de imprimir el resultado"],
+  "riesgos": ["errores probables a evitar"]
+}
+Mínimo 3 pasos, al menos 1 criterio y 1 verificación.

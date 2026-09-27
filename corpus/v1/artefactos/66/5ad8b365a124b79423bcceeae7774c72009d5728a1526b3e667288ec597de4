@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 1.0,
+  "diferencia": "No hay diferencias sustanciales. Las variaciones son únicamente de redacción y forma de expresión: 'como mucho un 20%' = 'no pase del 20%', 'mayor correlación' = 'más alta correlación', 'se aleja' = 'dista', 'valores no ausentes' = 'valor presente'. Ambas políticas aplican idénticos criterios para deduplicación (primera aparición), tratamiento de ausentes, conversión de decimales con coma, cálculo de correlación de Pearson, y detección de anomalías con MAD × 1.4826 por región."
+}
+```

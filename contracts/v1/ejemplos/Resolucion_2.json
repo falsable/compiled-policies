@@ -1,0 +1,24 @@
+{
+ "schema_version": "1.0.0",
+ "tarea_id": "tar_01JAZ000000000000000000002",
+ "evento_id": "evt_01JAZ000000000000000000003",
+ "decision": "escalar",
+ "salida": null,
+ "bloque": {
+  "id": "blq_01JAZ000000000000000000001",
+  "version": "1.0.0"
+ },
+ "evidencia": {
+  "hash_igual": true,
+  "perfil_motivos": [
+   "formas_celda: nuevo ['9.9,9']"
+  ],
+  "acuerdo": false
+ },
+ "coste": {
+  "generacion_eur": 0.13,
+  "juez_eur": 0.0,
+  "total_eur": 2.134
+ },
+ "escalado_id": "esc_01JAZ000000000000000000004"
+}

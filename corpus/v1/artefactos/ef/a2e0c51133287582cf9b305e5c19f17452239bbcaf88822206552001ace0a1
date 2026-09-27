@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Son idénticas. Solo hay diferencias de redacción (verbos, orden de palabras: 'procesa'/'trátalas', 'dice'/'indique', 'sigan'/'continúen', 'aparecen'/'incluyen'). Todos los umbrales (500€, 5000€, 7 días), criterios (mismo proveedor/departamento), reglas (orden de evaluación), excepciones (seguridad+urgente), cálculos (round × 1.21), estados, motivos y comportamientos son idénticos."
+}
+```

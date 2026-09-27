@@ -1,0 +1,31 @@
+{
+ "dominio": "datos",
+ "contrato_texto": "En el CSV adjunto encuentra el estado final {\"par\": [col_a, col_b], \"anomalias\": [ids]} (listas ordenadas) aplicando EXACTAMENTE estas reglas:\n0. Si un 'id' aparece repetido, quédate solo con su PRIMERA aparición. Las celdas vacías son valores ausentes. Algunos valores numéricos usan coma decimal (p. ej. \"12,5\"): son números.\n1. Relación principal: entre las columnas numéricas con como mucho un 20 % de valores ausentes, el par con mayor correlación de Pearson en valor absoluto, calculada con las filas donde ambas columnas tienen valor.\n2. Filas anómalas: una fila es anómala si alguno de sus valores no ausentes, en CUALQUIER columna numérica, se aleja más de 4.5 desviaciones robustas (MAD × 1.4826) de la mediana de esa columna calculada DENTRO DE SU 'region' (ignorando ausentes). Si en una region la MAD de una columna es 0, esa columna no marca anomalías en esa region.",
+ "hash": "dfc7c2dd8a59243f3117eaae68734f6b49cfa4f0218ea361afb727846736ddde",
+ "firma": {
+  "numeros": [
+   "0",
+   "1.4826",
+   "12,5",
+   "20",
+   "4.5"
+  ],
+  "comillas": [
+   "12,5",
+   "anomalias",
+   "par"
+  ]
+ },
+ "codigo": "import pandas as pd\nimport numpy as np\nimport json\nfrom itertools import combinations\n\n# 1. Cargar CSV\ndf = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)\n\n# Strip espacios\nfor col in df.columns:\n    df[col] = df[col].str.strip()\n\n# 2. Deduplicar\ndf = df.drop_duplicates(subset='id', keep='first')\ndf = df.reset_index(drop=True)\n\n# Definir columnas numéricas\nnum_cols = [c for c in df.columns if c not in ['id', 'region']]\n\n# 3. Convertir numéricas\nfor col in num_cols:\n    def convert_to_float(x):\n        if x == '':\n            return np.nan\n        x = x.replace(',', '.')\n        try:\n            return float(x)\n        except:\n            return np.nan\n    \n    df[col] = df[col].apply(convert_to_float)\n\n# 4. Calcular elegibilidad\nelegibles = []\nfor col in num_cols:\n    nan_pct = df[col].isna().mean()\n    if nan_pct <= 0.20:\n        elegibles.append(col)\n\n# 5. Calcular correlaciones\nmax_corr = -1\nbest_pair = None\n\nfor col_a, col_b in combinations(elegibles, 2):\n    mask = df[col_a].notna() & df[col_b].notna()\n    if mask.sum() < 2:\n        continue\n    \n    corr = df.loc[mask, col_a].corr(df.loc[mask, col_b])\n    \n    if pd.isna(corr):\n        continue\n    \n    abs_corr = abs(corr)\n    \n    if abs_corr > max_corr:\n        max_corr = abs_corr\n        best_pair = sorted([col_a, col_b])\n\n# 6. Detectar anomalías\nanomalias_set = set()\n\nfor region in df['region'].unique():\n    region_mask = df['region'] == region\n    region_indices = df[region_mask].index\n    \n    for col in num_cols:\n        values = df.loc[region_indices, col].dropna()\n        \n        if len(values) == 0:\n            continue\n        \n        mediana = values.median()\n        mad = (values - mediana).abs().median()\n        \n        if mad == 0:\n            continue\n        \n        threshold = 4.5 * 1.4826 * mad\n        \n        for idx in region_indices:\n            val = df.loc[idx, col]\n            if pd.isna(val):\n                continue\n            \n            if abs(val - mediana) > threshold:\n                anomalias_set.add(df.loc[idx, 'id'])\n\n# 7. Resultado\nresultado = {\n    \"par\": best_pair,\n    \"anomalias\": sorted(list(anomalias_set))\n}\n\nprint(json.dumps(resultado, ensure_ascii=False))\n",
+ "validacion": "5/5",
+ "coste_compilacion": 0.11363400000000001,
+ "candidatos": [
+  {
+   "candidato": 0,
+   "entrenado_en": "datos-extremo-000",
+   "aciertos": 5,
+   "coste": 0.11363400000000001,
+   "fallos": []
+  }
+ ]
+}

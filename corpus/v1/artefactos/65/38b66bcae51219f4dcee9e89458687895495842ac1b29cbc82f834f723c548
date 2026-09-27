@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.02,
+  "diferencia": "La Regla 2 (detección de anomalías) es diferente en el criterio de cálculo de mediana y MAD: POLÍTICA A calcula estos estadísticos DENTRO DE CADA 'region' (por separado según región), mientras que POLÍTICA B calcula sobre TODA LA COLUMNA sin separar por región. Esto produce resultados diferentes para cualquier dataset con múltiples regiones que tengan distribuciones distintas de valores. Los umbrales de anomalía serían diferentes para cada fila según si se estratifica o no por región."
+}
+```

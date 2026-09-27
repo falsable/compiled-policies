@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Ambas políticas especifican el mismo algoritmo exacto. Las variaciones son puramente redaccionales: (1) 'quedarse solo con PRIMERA aparición' vs 'vale PRIMERA fila', (2) '≤20%' vs 'como mucho 20%', (3) phrasing de distancia ('se aleja más de' vs 'a más de'). El procedimiento técnico es idéntico en: manejo de duplicados, detección de ausentes, conversión de decimales con coma, cálculo de Pearson pairwise, criterio de anomalía (4.5×MAD×1.4826 por región), y excepción cuando MAD=0."
+}
+```

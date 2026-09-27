@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.01,
+  "diferencia": "En la Regla 1 de Solicitudes (excepción por proveedor no homologado), la categoría cambia de 'seguridad' a 'hardware'. POLÍTICA A escalada con categoría 'seguridad' y urgente; POLÍTICA B con categoría 'hardware' y urgente. Esto es un cambio de criterio que produce resultados diferentes para solicitudes de las categorías afectadas."
+}
+```

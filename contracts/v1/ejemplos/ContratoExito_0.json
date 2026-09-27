@@ -1,0 +1,40 @@
+{
+ "schema_version": "1.0.0",
+ "proceso": "negocio-compras",
+ "estado_objetivo": {
+  "type": "object",
+  "required": [
+   "decisiones",
+   "presupuesto_final"
+  ]
+ },
+ "verificadores": [
+  {
+   "id": "invariantes",
+   "tipo": "determinista",
+   "coste_eur": 0.0,
+   "tpr": 1,
+   "fpr": 0,
+   "congelado": true
+  },
+  {
+   "id": "juez_equivalencia",
+   "tipo": "estadistico",
+   "coste_eur": 0.014,
+   "tpr": 0.97,
+   "fpr": 0.05,
+   "umbral": 0.83,
+   "congelado": true
+  },
+  {
+   "id": "revisor",
+   "tipo": "humano",
+   "coste_eur": 2.0,
+   "congelado": true
+  }
+ ],
+ "p_min": 0.9,
+ "V_eur": 2.0,
+ "k_pass": 5,
+ "presupuesto_tarea_eur": 1.0
+}

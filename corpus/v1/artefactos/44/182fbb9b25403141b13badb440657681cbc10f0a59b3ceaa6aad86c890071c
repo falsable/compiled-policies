@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.08,
+  "diferencia": "En la Regla 1, el umbral de valores ausentes permitido cambia de 20% (Política A) a 35% (Política B). Esto amplia el conjunto de columnas numéricas candidatas para formar el par con mayor correlación de Pearson. El par resultante puede ser diferente si existen columnas numéricas con 20-35% de valores ausentes cuya correlación sea superior a la del par seleccionado bajo Política A."
+}
+```

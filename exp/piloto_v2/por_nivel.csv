@@ -1,0 +1,7 @@
+dominio,nivel,sin_plan,plan_barato,plan_caro
+datos,dificil,1.0,1.0,1.0
+datos,facil,1.0,0.5,1.0
+datos,media,1.0,1.0,1.0
+negocio,dificil,1.0,0.5,1.0
+negocio,facil,1.0,1.0,1.0
+negocio,media,1.0,1.0,1.0

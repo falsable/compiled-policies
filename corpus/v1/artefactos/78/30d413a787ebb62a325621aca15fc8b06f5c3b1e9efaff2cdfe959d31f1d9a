@@ -1,0 +1,84 @@
+import pandas as pd
+import numpy as np
+import json
+
+# Paso 1: Cargar CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip de espacios y convertir cadenas vacías a NaN
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col] = df[col].str.strip()
+        df[col] = df[col].replace('', np.nan)
+
+# Paso 2: Deduplicar por 'id'
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Paso 3: Convertir columnas numéricas
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+for col in numeric_cols:
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Paso 4: Calcular elegibles y par
+frac_na = df[numeric_cols].isna().sum() / len(df)
+elegibles = [col for col in numeric_cols if frac_na[col] <= 0.20]
+
+if len(elegibles) >= 2:
+    corr = df[elegibles].corr(method='pearson')
+    
+    max_corr = -1
+    best_pair = None
+    
+    for i in range(len(elegibles)):
+        for j in range(i+1, len(elegibles)):
+            r = corr.iloc[i, j]
+            if not np.isnan(r):
+                abs_r = abs(r)
+                if abs_r > max_corr:
+                    max_corr = abs_r
+                    best_pair = (elegibles[i], elegibles[j])
+    
+    par = sorted(best_pair) if best_pair else []
+else:
+    par = []
+
+# Paso 5: Detectar anomalías por región
+anomalias_set = set()
+
+for region in df['region'].unique():
+    if pd.isna(region):
+        continue
+    
+    region_df = df[df['region'] == region]
+    
+    for col in numeric_cols:
+        values = region_df[col].dropna()
+        
+        if len(values) == 0:
+            continue
+        
+        med = values.median()
+        mad = (values - med).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        escala = 1.4826 * mad
+        threshold = 4.5 * escala
+        
+        mask = (region_df[col] - med).abs() > threshold
+        anomalas_idx = region_df.loc[mask, 'id'].values
+        
+        anomalias_set.update(anomalas_idx)
+
+# Paso 6: Construir resultado
+anomalias = sorted(list(anomalias_set))
+
+resultado = {
+    'par': par,
+    'anomalias': anomalias
+}
+
+print(json.dumps(resultado, ensure_ascii=False))

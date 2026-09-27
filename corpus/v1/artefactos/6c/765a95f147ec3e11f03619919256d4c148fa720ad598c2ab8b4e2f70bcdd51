@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.01,
+  "diferencia": "Hay dos cambios funcionales críticos: (1) Factor IVA: Política A usa 1.21 (21%), Política B usa 1.10 (10%) — afecta el cálculo de importes cuando dice '+ IVA'. (2) Ventana temporal: Política A considera 7 días anteriores para acumular importes del mismo proveedor/departamento, Política B considera 14 días — esto cambia qué solicitudes se incluyen en el acumulado y, por tanto, el aprobador asignado. Ambas diferencias producen resultados distintos para entradas idénticas."
+}
+```

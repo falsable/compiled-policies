@@ -1,0 +1,159 @@
+import json
+import re
+from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
+
+# Cargar datos
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = {k: Decimal(str(v)) for k, v in data['tipos_cambio'].items()}
+presupuesto = {k: Decimal(str(v)) for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+def parsear_importe(texto_importe):
+    """Extrae moneda, número, convierte a EUR y aplica IVA"""
+    # Detectar moneda
+    if '€' in texto_importe or 'EUR' in texto_importe:
+        moneda = 'EUR'
+    elif 'USD' in texto_importe:
+        moneda = 'USD'
+    elif 'GBP' in texto_importe:
+        moneda = 'GBP'
+    else:
+        raise ValueError(f"Moneda no detectada en: {texto_importe}")
+    
+    # Detectar IVA
+    tiene_iva_agregado = '+ IVA' in texto_importe
+    
+    # Extraer número
+    numero_match = re.search(r'[\d.,]+', texto_importe)
+    numero_str = numero_match.group()
+    
+    # Normalizar número según moneda
+    if moneda == 'EUR':
+        if ',' in numero_str:
+            # Formato español: 1.531,56 → quitar . y cambiar , por .
+            numero_str = numero_str.replace('.', '').replace(',', '.')
+    else:  # USD o GBP - formato anglosajón
+        numero_str = numero_str.replace(',', '')
+    
+    # Convertir a EUR
+    importe_base = Decimal(numero_str)
+    eur = (importe_base * tipos_cambio[moneda]).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    # Aplicar IVA si está marcado con "+ IVA"
+    if tiene_iva_agregado:
+        eur = (eur * Decimal('1.10')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    return eur
+
+# Parsear importes para todas las solicitudes
+for entrada in entradas:
+    if entrada['tipo'] == 'solicitud':
+        entrada['importe_eur'] = parsear_importe(entrada['importe'])
+
+# Ordenar por fecha e id (en la misma fecha, 'CX' va antes de 'SC' por orden lexicográfico)
+entradas_ordenadas = sorted(entradas, key=lambda x: (x['fecha'], x['id']))
+
+# Procesar entradas
+decisiones = {}
+solicitudes_procesadas = {}
+
+for entrada in entradas_ordenadas:
+    if entrada['tipo'] == 'solicitud':
+        id_sol = entrada['id']
+        fecha = entrada['fecha']
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe = entrada['importe_eur']
+        
+        # Regla 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        # Regla 2: Presupuesto insuficiente
+        elif importe > presupuesto[departamento]:
+            estado = 'escalada'
+            aprobador = 'finanzas'
+            motivo = 'sin_presupuesto'
+        # Regla 3: Aprobada
+        else:
+            estado = 'aprobada'
+            motivo = None
+            presupuesto[departamento] -= importe
+            
+            # Calcular acumulado: esta solicitud + solicitudes aprobadas del mismo proveedor y departamento en 14 días
+            fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+            acumulado = importe
+            
+            for id_otra, datos_otra in solicitudes_procesadas.items():
+                if (datos_otra['estado'] == 'aprobada' and
+                    datos_otra['proveedor'] == proveedor and
+                    datos_otra['departamento'] == departamento):
+                    fecha_otra = datetime.strptime(datos_otra['fecha'], '%Y-%m-%d').date()
+                    dias_diff = (fecha_obj - fecha_otra).days
+                    if 0 <= dias_diff <= 14:
+                        acumulado += datos_otra['importe']
+            
+            # Determinar aprobador por acumulado
+            if acumulado <= Decimal('500'):
+                aprobador = 'auto'
+            elif acumulado <= Decimal('5000'):
+                aprobador = 'jefe_departamento'
+            else:
+                aprobador = 'direccion'
+        
+        # Regla 4: revision_it
+        revision_it = categoria == 'software' and estado in {'aprobada', 'escalada'}
+        
+        decisiones[id_sol] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+        
+        solicitudes_procesadas[id_sol] = {
+            'fecha': fecha,
+            'proveedor': proveedor,
+            'departamento': departamento,
+            'estado': estado,
+            'importe': importe
+        }
+    
+    elif entrada['tipo'] == 'cancelacion':
+        ref_id = entrada['referencia']
+        
+        if ref_id in solicitudes_procesadas:
+            # Devolver presupuesto si estaba aprobada
+            if solicitudes_procesadas[ref_id]['estado'] == 'aprobada':
+                presupuesto[solicitudes_procesadas[ref_id]['departamento']] += solicitudes_procesadas[ref_id]['importe']
+            
+            # Marcar como cancelada
+            solicitudes_procesadas[ref_id]['estado'] = 'cancelada'
+            decisiones[ref_id]['estado'] = 'cancelada'
+            decisiones[ref_id]['aprobador'] = None
+            decisiones[ref_id]['motivo'] = 'cancelada_por_solicitante'
+            decisiones[ref_id]['revision_it'] = False
+
+# Convertir presupuesto a float
+presupuesto_final = {k: float(v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)) for k, v in presupuesto.items()}
+
+# Construir resultado con decisiones ordenadas por id
+resultado = {
+    'decisiones': {k: decisiones[k] for k in sorted(decisiones.keys())},
+    'presupuesto_final': presupuesto_final
+}
+
+# Imprimir JSON
+print(json.dumps(resultado, ensure_ascii=False))

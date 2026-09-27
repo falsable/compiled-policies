@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0,
+  "diferencia": "El umbral de desviaciones robustas para detectar anomalías difiere: POLÍTICA A usa 4.5 desviaciones robustas, POLÍTICA B usa 3.5 desviaciones robustas. Esto produce diferentes conjuntos de filas anómalas para la mayoría de datos reales."
+}
+```

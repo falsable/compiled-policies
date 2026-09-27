@@ -1,0 +1,81 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Lectura
+df = pd.read_csv('datos.csv', sep=';', dtype=str, keep_default_na=False)
+
+# Strip de todas las celdas
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# Convertir '' a NaN
+df = df.replace('', np.nan)
+
+# Deduplicación (regla 0)
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Convertir numéricas
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+for col in numeric_cols:
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Seleccionar elegibles (regla 1)
+elegibles = []
+for col in numeric_cols:
+    frac = df[col].isna().mean()
+    if frac <= 0.20:
+        elegibles.append(col)
+
+# Calcular correlaciones (regla 1)
+best_r = -1
+best_pair = None
+for a, b in combinations(sorted(elegibles), 2):
+    mask = df[a].notna() & df[b].notna()
+    if mask.sum() < 3:
+        continue
+    if df[a][mask].std() == 0 or df[b][mask].std() == 0:
+        continue
+    r = np.corrcoef(df[a][mask].values, df[b][mask].values)[0, 1]
+    abs_r = abs(r)
+    if abs_r > best_r:
+        best_r = abs_r
+        best_pair = (a, b)
+
+# Calcular anomalías (regla 2)
+anomalous_ids = set()
+for region in df['region'].unique():
+    if pd.isna(region):
+        region_mask = df['region'].isna()
+    else:
+        region_mask = df['region'] == region
+    
+    for col in numeric_cols:
+        values = df.loc[region_mask, col].dropna()
+        if len(values) == 0:
+            continue
+        
+        m = values.median()
+        mad = (values - m).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        sigma = 1.4826 * mad
+        threshold = 4.5 * sigma
+        
+        for idx in df[region_mask].index:
+            val = df.loc[idx, col]
+            if pd.notna(val) and abs(val - m) > threshold:
+                anomalous_ids.add(df.loc[idx, 'id'])
+
+# Emitir resultado
+result = {
+    'par': sorted(best_pair) if best_pair else [],
+    'anomalias': sorted(list(anomalous_ids))
+}
+print(json.dumps(result, ensure_ascii=False))
+```

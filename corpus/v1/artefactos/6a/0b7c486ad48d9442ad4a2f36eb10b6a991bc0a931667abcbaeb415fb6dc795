@@ -1,0 +1,83 @@
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Paso 1: Cargar el CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=True)
+
+# Strip de espacios y conversión de '' a NaN
+for col in df.columns:
+    if df[col].dtype == object:
+        df[col] = df[col].str.strip()
+        df[col] = df[col].replace('', np.nan)
+
+# Paso 2: Deduplicar por id
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Paso 3: Convertir columnas numéricas
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+for col in numeric_cols:
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Paso 4: Seleccionar columnas elegibles (con <= 35% NaN)
+frac_na = df[numeric_cols].isna().mean()
+eligible_cols = [col for col in numeric_cols if frac_na[col] <= 0.35]
+
+# Paso 5: Calcular correlaciones y elegir el par
+max_corr = -2
+best_pair = None
+
+for col_a, col_b in combinations(eligible_cols, 2):
+    mask = df[col_a].notna() & df[col_b].notna()
+    if mask.sum() < 2:
+        continue
+    
+    r = df.loc[mask, [col_a, col_b]].corr().iloc[0, 1]
+    
+    if np.isnan(r):
+        continue
+    
+    abs_r = abs(r)
+    if abs_r > max_corr:
+        max_corr = abs_r
+        best_pair = (col_a, col_b)
+
+par = sorted(list(best_pair)) if best_pair else []
+
+# Paso 6: Detectar anomalías por región
+anomalies = set()
+
+for region, group in df.groupby('region', dropna=False):
+    if pd.isna(region):
+        continue
+    
+    for col in numeric_cols:
+        x = group[col]
+        v = x.dropna()
+        
+        if len(v) == 0:
+            continue
+        
+        med = v.median()
+        mad = (v - med).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        threshold = 4.5 * mad * 1.4826
+        
+        mask_anomaly = (x - med).abs() > threshold
+        anomaly_ids = group.loc[mask_anomaly, 'id'].tolist()
+        anomalies.update(anomaly_ids)
+
+anomalies_list = sorted(list(anomalies))
+
+resultado = {
+    "par": par,
+    "anomalias": anomalies_list
+}
+
+print(json.dumps(resultado, ensure_ascii=False))

@@ -1,0 +1,89 @@
+import pandas as pd
+import numpy as np
+import json
+
+# Load CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip all cells and convert empty strings to NaN
+df = df.apply(lambda col: col.str.strip().replace('', np.nan))
+
+# Deduplicate by id, keeping first occurrence
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Convert numeric columns (all except 'id' and 'region')
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+for col in numeric_cols:
+    # Replace comma with dot and convert to numeric
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Select eligible columns (fraction of NaN <= 0.20)
+eligible_cols = []
+for col in numeric_cols:
+    frac_na = df[col].isna().sum() / len(df)
+    if frac_na <= 0.20:
+        eligible_cols.append(col)
+
+# Calculate Pearson correlations
+corr_matrix = df[eligible_cols].corr(method='pearson')
+
+# Find pair with maximum absolute correlation
+best_candidates = []
+max_corr = -1
+
+for i in range(len(eligible_cols)):
+    for j in range(i + 1, len(eligible_cols)):
+        col_i = eligible_cols[i]
+        col_j = eligible_cols[j]
+        corr_val = corr_matrix.loc[col_i, col_j]
+        if pd.notna(corr_val):
+            abs_corr = abs(corr_val)
+            if abs_corr > max_corr:
+                max_corr = abs_corr
+                best_candidates = [(col_i, col_j)]
+            elif abs_corr == max_corr:
+                best_candidates.append((col_i, col_j))
+
+# Select alphabetically smallest pair among ties
+best_candidates_sorted = [tuple(sorted([a, b])) for a, b in best_candidates]
+best_candidates_sorted = sorted(set(best_candidates_sorted))
+best_pair = best_candidates_sorted[0] if best_candidates_sorted else None
+
+par = list(best_pair) if best_pair else []
+
+# Detect anomalies
+anomaly_mask = pd.Series(False, index=df.index)
+
+# Group by region (including NaN regions)
+for region, group_df in df.groupby('region', dropna=False):
+    region_indices = group_df.index
+    
+    for col in numeric_cols:
+        values = group_df[col].dropna()
+        
+        if len(values) == 0:
+            continue
+        
+        # Calculate median and MAD within region
+        m = np.median(values.values)
+        mad = np.median(np.abs(values.values - m))
+        
+        # Skip if MAD is 0
+        if mad == 0:
+            continue
+        
+        threshold = 3.5 * mad * 1.4826
+        
+        # Mark anomalous values
+        for idx in region_indices:
+            val = df.loc[idx, col]
+            if pd.notna(val):
+                if abs(val - m) > threshold:
+                    anomaly_mask.loc[idx] = True
+
+# Build output
+anomalies = sorted(set(df.loc[anomaly_mask, 'id'].tolist()))
+output = {"par": par, "anomalias": anomalies}
+print(json.dumps(output, ensure_ascii=False))

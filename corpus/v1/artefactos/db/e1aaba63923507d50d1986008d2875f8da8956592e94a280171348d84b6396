@@ -1,0 +1,60 @@
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# Leer datos
+df = pd.read_csv('datos.csv', sep=';', dtype=str, keep_default_na=False, encoding='utf-8')
+df.columns = df.columns.str.strip()
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# Deduplicar por id (primera aparición)
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Convertir columnas numéricas
+numeric_cols = []
+for col in df.columns:
+    if col not in ['id', 'region']:
+        s = df[col].str.replace(',', '.', regex=False).replace('', np.nan)
+        df[col] = pd.to_numeric(s, errors='coerce')
+        numeric_cols.append(col)
+
+# Seleccionar elegibles para Regla 1 (máximo 20% ausentes)
+eligible = [c for c in numeric_cols if df[c].isna().mean() <= 0.20]
+
+# Calcular mejor correlación (Pearson, máximo valor absoluto)
+best_r = -np.inf
+best_pair = None
+for c1, c2 in combinations(eligible, 2):
+    m = df[c1].notna() & df[c2].notna()
+    if m.sum() < 3:
+        continue
+    v1, v2 = df.loc[m, c1].values, df.loc[m, c2].values
+    if np.std(v1) > 0 and np.std(v2) > 0:
+        r = np.corrcoef(v1, v2)[0, 1]
+        if not np.isnan(r) and abs(r) > best_r:
+            best_r = abs(r)
+            best_pair = (c1, c2)
+
+par = sorted(list(best_pair))
+
+# Detectar anomalías por región usando MAD
+anom = pd.Series(False, index=df.index)
+for region in df['region'].unique():
+    rmask = df['region'] == region
+    for col in numeric_cols:
+        vals = df.loc[rmask, col]
+        vvals = vals.dropna()
+        if len(vvals) > 0:
+            med = vvals.median()
+            mad = (vvals - med).abs().median()
+            if mad > 0:
+                s = 1.4826 * mad
+                is_anom = (np.abs(vals - med) > 4.5 * s).fillna(False)
+                anom[rmask] = anom[rmask] | is_anom
+
+# Construir salida
+anomalias = sorted(list(df.loc[anom, 'id'].unique()))
+resultado = {"par": par, "anomalias": anomalias}
+print(json.dumps(resultado, ensure_ascii=False))

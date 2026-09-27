@@ -1,0 +1,19 @@
+{
+ "tareas": 90,
+ "sustantivas_cubiertas": 20,
+ "fallos_silenciosos": 0,
+ "acierto_router_%": 100.0,
+ "acierto_param_%": 100.0,
+ "coste_total_medio_router_$": 0.05396153333333334,
+ "coste_total_medio_param_$": 0.01492271111111112,
+ "ahorro_%": 72.34565033775087,
+ "parametrizados": {
+  "datos": true,
+  "negocio": true
+ },
+ "veredicto": "H5 SOBREVIVE",
+ "sha256": {
+  "script": "6bf59226cfd33f05aed69c84816f70d3378e68a6d552fbe62b9b1c9002acdfc4",
+  "exp/reutilizacion/evaluacion.jsonl": "80cfdcdc2f1efc65a311413635f25682226d3561efa2a44b15651bf94be9f3ef"
+ }
+}

@@ -1,0 +1,55 @@
+POLÍTICA A (la del programa existente):
+POLÍTICA DE COMPRAS
+Orden: procesa las entradas por fecha y, a igual fecha, por id (orden alfabético). El lote NO viene ordenado.
+Hay dos tipos de entrada: "solicitud" y "cancelacion".
+
+Importes: cada solicitud trae su importe en EUR, USD o GBP.
+- EUR usa formato español (1.234,56) o plano (1234.56). USD y GBP usan formato anglosajón (1,234.56).
+- Convierte a EUR con "tipos_cambio" (EUR por unidad): eur = round(importe × tipo, 2).
+- Si el texto dice "+ IVA", el importe con IVA es round(eur × 1.21, 2); si dice "(IVA incluido)", ya lo es.
+Todas las reglas usan el importe con IVA en EUR.
+
+Solicitudes (en este orden):
+1. Proveedor que no está en "proveedores_homologados" → estado "rechazada", motivo "proveedor_no_homologado".
+   Excepción: categoría "seguridad" y urgente → estado "escalada", aprobador "direccion", motivo "excepcion_seguridad".
+2. Importe mayor que el presupuesto restante del departamento → estado "escalada", aprobador "finanzas",
+   motivo "sin_presupuesto".
+3. En otro caso → estado "aprobada", motivo null, y descuenta el importe del presupuesto del departamento.
+   Aprobador según el IMPORTE ACUMULADO: el de esta solicitud más el de las solicitudes ya procesadas que
+   sigan aprobadas, del mismo proveedor y departamento, con fecha dentro de los 7 días anteriores
+   (incluida la misma fecha). Acumulado ≤ 500 € → "auto"; ≤ 5000 € → "jefe_departamento"; > 5000 € → "direccion".
+   (La regla 2 usa solo el importe de esta solicitud.)
+4. revision_it = true si la categoría es "software" y el estado es "aprobada" o "escalada".
+
+Cancelaciones: anulan la solicitud "referencia". Esa solicitud queda con estado "cancelada", aprobador null,
+motivo "cancelada_por_solicitante", revision_it false. Si estaba aprobada, su importe vuelve al presupuesto
+del departamento. Las cancelaciones no aparecen en "decisiones".
+
+Redondeo a 2 decimales.
+
+POLÍTICA B (la de la tarea nueva):
+Política de aprobación de compras — versión resumida
+
+Qué hay en el lote: solicitudes y cancelaciones ("solicitud" / "cancelacion"), sin ordenar.
+Cómo recorrerlo: por fecha ascendente; empates por id en orden alfabético.
+
+Importe de trabajo (siempre con IVA y en EUR):
+  • moneda EUR → formato español (1.234,56) o plano (1234.56); USD/GBP → formato anglosajón (1,234.56)
+  • conversión: eur = round(importe × tipo, 2), con "tipos_cambio" en euros por unidad
+  • si pone "+ IVA": con IVA = round(eur × 1.21, 2); si pone "(IVA incluido)": se deja igual
+
+Decisión por solicitud (la primera que aplique):
+  a) proveedor fuera de "proveedores_homologados" → "rechazada", motivo "proveedor_no_homologado";
+     excepto categoría "seguridad" y urgente → "escalada", aprobador "direccion", motivo "excepcion_seguridad"
+  b) importe por encima del presupuesto restante del departamento → "escalada", aprobador "finanzas", motivo "sin_presupuesto"
+  c) resto → "aprobada", motivo null; se descuenta del presupuesto del departamento
+     aprobador según el acumulado (esta solicitud + las ya procesadas aún aprobadas, mismo proveedor y departamento,
+     fecha en los 7 días anteriores incluida la misma): hasta 500 € "auto"; hasta 5000 € "jefe_departamento"; más de 5000 € "direccion"
+     (la comprobación de presupuesto de b) usa solo el importe de esta solicitud)
+  revision_it: true si categoría "software" y estado "aprobada" o "escalada"; false en otro caso
+
+Cancelación: la solicitud de "referencia" queda "cancelada", aprobador null, motivo "cancelada_por_solicitante",
+revision_it false. Si estaba aprobada, su importe vuelve al presupuesto
+del departamento. No se listan cancelaciones en "decisiones".
+
+Redondeo: 2 decimales.

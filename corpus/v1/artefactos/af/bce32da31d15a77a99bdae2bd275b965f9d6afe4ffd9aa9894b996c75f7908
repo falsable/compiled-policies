@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0,
+  "diferencia": "POLÍTICA A devuelve el importe al presupuesto del departamento cuando se cancela una solicitud que estaba aprobada. POLÍTICA B especifica que el importe NO vuelve al presupuesto, aunque la solicitud estuviera aprobada. Esta diferencia afecta directamente el presupuesto restante disponible para evaluar solicitudes posteriores (regla 2: presupuesto restante), por lo que producirán resultados distintos en cualquier escenario con cancelaciones de solicitudes aprobadas."
+}
+```

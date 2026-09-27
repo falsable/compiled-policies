@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 1.0,
+  "diferencia": "No hay diferencias sustantivas. Ambas políticas especifican idénticos procedimientos: (1) mantener primera aparición de ids duplicados; (2) tratar vacíos como ausentes y comas decimales como números; (3) calcular máximo |Pearson| pairwise en columnas con ≤20% ausentes; (4) detectar anomalías como desviaciones >4.5×MAD×1.4826 de la mediana regional; (5) no marcar anomalías si MAD=0. Las diferencias son solo redacción y orden de exposición."
+}
+```

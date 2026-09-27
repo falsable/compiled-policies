@@ -1,0 +1,212 @@
+TAREA:
+Aplica la política de compras a las entradas y devuelve el estado final: {"decisiones": {id_solicitud: {"estado", "aprobador", "motivo", "revision_it"}}, "presupuesto_final": {departamento: euros}}.
+
+ENTRADAS:
+Archivo `entradas.json` con las claves ['politica', 'proveedores_homologados', 'tipos_cambio', 'presupuesto_inicial', 'entradas']. Contenido:
+{
+ "politica": "POLÍTICA DE COMPRAS\nOrden: procesa las entradas por fecha y, a igual fecha, por id (orden alfabético). El lote NO viene ordenado.\nHay dos tipos de entrada: \"solicitud\" y \"cancelacion\".\n\nImportes: cada solicitud trae su importe en EUR, USD o GBP.\n- EUR usa formato español (1.234,56) o plano (1234.56). USD y GBP usan formato anglosajón (1,234.56).\n- Convierte a EUR con \"tipos_cambio\" (EUR por unidad): eur = round(importe × tipo, 2).\n- Si el texto dice \"+ IVA\", el importe con IVA es round(eur × 1.21, 2); si dice \"(IVA incluido)\", ya lo es.\nTodas las reglas usan el importe con IVA en EUR.\n\nSolicitudes (en este orden):\n1. Proveedor que no está en \"proveedores_homologados\" → estado \"rechazada\", motivo \"proveedor_no_homologado\".\n   Excepción: categoría \"seguridad\" y urgente → estado \"escalada\", aprobador \"direccion\", motivo \"excepcion_seguridad\".\n2. Importe mayor que el presupuesto restante del departamento → estado \"escalada\", aprobador \"finanzas\",\n   motivo \"sin_presupuesto\".\n3. En otro caso → estado \"aprobada\", motivo null, y descuenta el importe del presupuesto del departamento.\n   Aprobador según el IMPORTE ACUMULADO: el de esta solicitud más el de las solicitudes ya procesadas que\n   sigan aprobadas, del mismo proveedor y departamento, con fecha dentro de los 7 días anteriores\n   (incluida la misma fecha). Acumulado ≤ 500 € → \"auto\"; ≤ 5000 € → \"jefe_departamento\"; > 5000 € → \"direccion\".\n   (La regla 2 usa solo el importe de esta solicitud.)\n4. revision_it = true si la categoría es \"software\" y el estado es \"aprobada\" o \"escalada\".\n\nCancelaciones: anulan la solicitud \"referencia\". Esa solicitud queda con estado \"cancelada\", aprobador null,\nmotivo \"cancelada_por_solicitante\", revision_it false. Si estaba aprobada, su importe vuelve al presupuesto\ndel departamento. Las cancelaciones no aparecen en \"decisiones\".\n\nRedondeo a 2 decimales.",
+ "proveedores_homologados": [
+  "Acme Suministros",
+  "Iberdata",
+  "Norte Oficina",
+  "TecnoLevante",
+  "SegurPro",
+  "Lex Proveedores"
+ ],
+ "tipos_cambio": {
+  "USD": 0.92,
+  "GBP": 1.17,
+  "EUR": 1.0
+ },
+ "presupuesto_inicial": {
+  "marketing": 3900.0,
+  "operaciones": 3600.0,
+  "it": 6300.0,
+  "rrhh": 4700.0,
+  "legal": 3400.0
+ },
+ "entradas": [
+  {
+   "id": "SC-301-13",
+   "tipo": "solicitud",
+   "fecha": "2026-09-14",
+   "departamento": "legal",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "953.97 € (IVA incluido)"
+  },
+  {
+   "id": "SC-301-06",
+   "tipo": "solicitud",
+   "fecha": "2026-09-17",
+   "departamento": "operaciones",
+   "proveedor": "Acme Suministros",
+   "categoria": "formacion",
+   "urgente": true,
+   "importe": "2.924,87 € + IVA"
+  },
+  {
+   "id": "SC-301-11",
+   "tipo": "solicitud",
+   "fecha": "2026-09-19",
+   "departamento": "marketing",
+   "proveedor": "TecnoLevante",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "1.382,47 € (IVA incluido)"
+  },
+  {
+   "id": "SC-301-10",
+   "tipo": "solicitud",
+   "fecha": "2026-09-07",
+   "departamento": "legal",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "2306.33 € + IVA"
+  },
+  {
+   "id": "CX-301-1",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-17",
+   "referencia": "SC-301-15"
+  },
+  {
+   "id": "SC-301-07",
+   "tipo": "solicitud",
+   "fecha": "2026-09-06",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "formacion",
+   "urgente": true,
+   "importe": "1.359,98 € (IVA incluido)"
+  },
+  {
+   "id": "SC-301-03",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "legal",
+   "proveedor": "SegurPro",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "1,652.47 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-301-04",
+   "tipo": "solicitud",
+   "fecha": "2026-09-16",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "797.15 € + IVA"
+  },
+  {
+   "id": "SC-301-15",
+   "tipo": "solicitud",
+   "fecha": "2026-09-07",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "312,99 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-301-12",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "operaciones",
+   "proveedor": "Global Bargains",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "156.17 € (IVA incluido)"
+  },
+  {
+   "id": "SC-301-02",
+   "tipo": "solicitud",
+   "fecha": "2026-09-12",
+   "departamento": "rrhh",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "68.42 € (IVA incluido)"
+  },
+  {
+   "id": "CX-301-0",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-26",
+   "referencia": "SC-301-11"
+  },
+  {
+   "id": "SC-301-09",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "rrhh",
+   "proveedor": "Lex Proveedores",
+   "categoria": "formacion",
+   "urgente": true,
+   "importe": "669,66 € + IVA"
+  },
+  {
+   "id": "SC-301-01",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "marketing",
+   "proveedor": "Iberdata",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "2.576,09 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-301-05",
+   "tipo": "solicitud",
+   "fecha": "2026-09-13",
+   "departamento": "rrhh",
+   "proveedor": "Lex Proveedores",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "839,49 € (IVA incluido)"
+  },
+  {
+   "id": "SC-301-00",
+   "tipo": "solicitud",
+   "fecha": "2026-09-18",
+   "departamento": "legal",
+   "proveedor": "Acme Suministros",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "127,27 € (IVA incluido)"
+  },
+  {
+   "id": "SC-301-08",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "marketing",
+   "proveedor": "Lex Proveedores",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "201,65 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-301-14",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "274,67 EUR (IVA incluido)"
+  }
+ ]
+}
+
+Formato obligatorio del plan (JSON):
+{
+  "objetivo": "qué estado final hay que producir",
+  "criterios": ["cada regla o criterio que el programa debe aplicar, con sus casos límite"],
+  "pasos": [{"n": 1, "accion": "…", "detalle": "…"}],
+  "verificacion": ["comprobaciones que el programa debe hacer antes de imprimir el resultado"],
+  "riesgos": ["errores probables a evitar"]
+}
+Mínimo 3 pasos, al menos 1 criterio y 1 verificación.

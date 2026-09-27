@@ -1,0 +1,278 @@
+TAREA:
+Aplica la política de compras a las entradas y devuelve el estado final: {"decisiones": {id_solicitud: {"estado", "aprobador", "motivo", "revision_it"}}, "presupuesto_final": {departamento: euros}}.
+
+ENTRADAS (en el directorio actual):
+Archivo `entradas.json` con las claves ['politica', 'proveedores_homologados', 'tipos_cambio', 'presupuesto_inicial', 'entradas']. Contenido:
+{
+ "politica": "POLÍTICA DE COMPRAS\nOrden: procesa las entradas por fecha y, a igual fecha, por id (orden alfabético). El lote NO viene ordenado.\nHay dos tipos de entrada: \"solicitud\" y \"cancelacion\".\n\nImportes: cada solicitud trae su importe en EUR, USD o GBP.\n- EUR usa formato español (1.234,56) o plano (1234.56). USD y GBP usan formato anglosajón (1,234.56).\n- Convierte a EUR con \"tipos_cambio\" (EUR por unidad): eur = round(importe × tipo, 2).\n- Si el texto dice \"+ IVA\", el importe con IVA es round(eur × 1.21, 2); si dice \"(IVA incluido)\", ya lo es.\nTodas las reglas usan el importe con IVA en EUR.\n\nSolicitudes (en este orden):\n1. Proveedor que no está en \"proveedores_homologados\" → estado \"rechazada\", motivo \"proveedor_no_homologado\".\n   Excepción: categoría \"hardware\" y urgente → estado \"escalada\", aprobador \"direccion\", motivo \"excepcion_seguridad\".\n2. Importe mayor que el presupuesto restante del departamento → estado \"escalada\", aprobador \"finanzas\",\n   motivo \"sin_presupuesto\".\n3. En otro caso → estado \"aprobada\", motivo null, y descuenta el importe del presupuesto del departamento.\n   Aprobador según el IMPORTE ACUMULADO: el de esta solicitud más el de las solicitudes ya procesadas que\n   sigan aprobadas, del mismo proveedor y departamento, con fecha dentro de los 7 días anteriores\n   (incluida la misma fecha). Acumulado ≤ 500 € → \"auto\"; ≤ 5000 € → \"jefe_departamento\"; > 5000 € → \"direccion\".\n   (La regla 2 usa solo el importe de esta solicitud.)\n4. revision_it = true si la categoría es \"software\" y el estado es \"aprobada\" o \"escalada\".\n\nCancelaciones: anulan la solicitud \"referencia\". Esa solicitud queda con estado \"cancelada\", aprobador null,\nmotivo \"cancelada_por_solicitante\", revision_it false. Si estaba aprobada, su importe vuelve al presupuesto\ndel departamento. Las cancelaciones no aparecen en \"decisiones\".\n\nRedondeo a 2 decimales.",
+ "proveedores_homologados": [
+  "Acme Suministros",
+  "Iberdata",
+  "Norte Oficina",
+  "TecnoLevante",
+  "SegurPro"
+ ],
+ "tipos_cambio": {
+  "USD": 0.92,
+  "GBP": 1.17,
+  "EUR": 1.0
+ },
+ "presupuesto_inicial": {
+  "marketing": 6300.0,
+  "operaciones": 6800.0,
+  "it": 2500.0,
+  "rrhh": 4600.0
+ },
+ "entradas": [
+  {
+   "id": "SC-117-07",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "it",
+   "proveedor": "SegurPro",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "2,308.55 USD + IVA"
+  },
+  {
+   "id": "SC-117-13",
+   "tipo": "solicitud",
+   "fecha": "2026-09-02",
+   "departamento": "operaciones",
+   "proveedor": "Norte Oficina",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "453,14 € + IVA"
+  },
+  {
+   "id": "SC-117-03",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "marketing",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "168.13 USD + IVA"
+  },
+  {
+   "id": "SC-117-06",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "marketing",
+   "proveedor": "Global Bargains",
+   "categoria": "software",
+   "urgente": false,
+   "importe": "593.44 GBP + IVA"
+  },
+  {
+   "id": "CX-117-0",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-03",
+   "referencia": "SC-117-13"
+  },
+  {
+   "id": "SC-117-09",
+   "tipo": "solicitud",
+   "fecha": "2026-09-14",
+   "departamento": "marketing",
+   "proveedor": "Global Bargains",
+   "categoria": "seguridad",
+   "urgente": true,
+   "importe": "1,243.46 GBP + IVA"
+  },
+  {
+   "id": "SC-117-00",
+   "tipo": "solicitud",
+   "fecha": "2026-09-20",
+   "departamento": "it",
+   "proveedor": "Iberdata",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "241.44 EUR + IVA"
+  },
+  {
+   "id": "SC-117-11",
+   "tipo": "solicitud",
+   "fecha": "2026-09-17",
+   "departamento": "rrhh",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "1,176.65 GBP (IVA incluido)"
+  },
+  {
+   "id": "SC-117-08",
+   "tipo": "solicitud",
+   "fecha": "2026-09-15",
+   "departamento": "it",
+   "proveedor": "TecnoLevante",
+   "categoria": "hardware",
+   "urgente": true,
+   "importe": "186.64 USD (IVA incluido)"
+  },
+  {
+   "id": "SC-117-10",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "operaciones",
+   "proveedor": "SegurPro",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "3280.52 € (IVA incluido)"
+  },
+  {
+   "id": "SC-117-05",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "marketing",
+   "proveedor": "QuickParts Ltd",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "303,64 € + IVA"
+  },
+  {
+   "id": "SC-117-01",
+   "tipo": "solicitud",
+   "fecha": "2026-09-05",
+   "departamento": "rrhh",
+   "proveedor": "Ofertas Mediterráneo",
+   "categoria": "material_oficina",
+   "urgente": true,
+   "importe": "493.78 GBP + IVA"
+  },
+  {
+   "id": "CX-117-1",
+   "tipo": "cancelacion",
+   "fecha": "2026-09-23",
+   "referencia": "SC-117-00"
+  },
+  {
+   "id": "SC-117-02",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "it",
+   "proveedor": "Norte Oficina",
+   "categoria": "hardware",
+   "urgente": false,
+   "importe": "2077.01 € (IVA incluido)"
+  },
+  {
+   "id": "SC-117-12",
+   "tipo": "solicitud",
+   "fecha": "2026-09-04",
+   "departamento": "operaciones",
+   "proveedor": "TecnoLevante",
+   "categoria": "hardware",
+   "urgente": true,
+   "importe": "525,92 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-117-15",
+   "tipo": "solicitud",
+   "fecha": "2026-09-10",
+   "departamento": "marketing",
+   "proveedor": "Norte Oficina",
+   "categoria": "formacion",
+   "urgente": false,
+   "importe": "357,81 EUR (IVA incluido)"
+  },
+  {
+   "id": "SC-117-14",
+   "tipo": "solicitud",
+   "fecha": "2026-09-08",
+   "departamento": "marketing",
+   "proveedor": "Norte Oficina",
+   "categoria": "material_oficina",
+   "urgente": false,
+   "importe": "327,11 € (IVA incluido)"
+  },
+  {
+   "id": "SC-117-04",
+   "tipo": "solicitud",
+   "fecha": "2026-09-03",
+   "departamento": "rrhh",
+   "proveedor": "Global Bargains",
+   "categoria": "seguridad",
+   "urgente": false,
+   "importe": "76.06 USD + IVA"
+  }
+ ]
+}
+
+PLAN A SEGUIR (escrito por el planificador):
+{
+ "objetivo": "Leer entradas.json, procesar solicitudes y cancelaciones en orden (fecha, id) según la política, y producir un JSON con esta forma: {\"decisiones\": {id_solicitud: {\"estado\", \"aprobador\", \"motivo\", \"revision_it\"}}, \"presupuesto_final\": {departamento: euros}}. En \"decisiones\" solo van las solicitudes, no las cancelaciones. Todos los euros se redondean a 2 decimales.",
+ "criterios": [
+  "Orden de proceso: ordenar todas las entradas por (fecha ISO como string, id como string). A igual fecha, 'CX-...' va antes que 'SC-...' porque es orden alfabético. El lote de entrada no viene ordenado.",
+  "Parseo del importe: la divisa es 'EUR' si el texto contiene '€' o 'EUR'; si no, 'USD' o 'GBP'. El número es el primer token numérico del texto.",
+  "Formato EUR: si el número contiene ',', es formato español: quitar los '.' y cambiar ',' por '.' (ej.: '453,14' → 453.14; '1.234,56' → 1234.56). Si no contiene ',', es formato plano: '3280.52' → 3280.52.",
+  "Formato USD y GBP: anglosajón. Quitar las ',' ('2,308.55' → 2308.55).",
+  "Conversión: eur = round(importe × tipos_cambio[divisa], 2). Si el texto contiene '+ IVA': con_iva = round(eur × 1.21, 2). Si contiene '(IVA incluido)': con_iva = eur. Hay que redondear dos veces (conversión y luego IVA), no una sola vez al final.",
+  "Redondeo: usar Decimal con ROUND_HALF_UP en todos los cálculos monetarios, para evitar errores de coma flotante (ej.: 453.14×1.21 = 548.2994 → 548.30).",
+  "Regla 1: si el proveedor no está en proveedores_homologados (comparación exacta), el estado es 'rechazada', el aprobador null y el motivo 'proveedor_no_homologado'.",
+  "Excepción de la regla 1: si la categoría es 'hardware' y urgente es true, el estado es 'escalada', el aprobador 'direccion' y el motivo 'excepcion_seguridad'. Si el proveedor no está homologado, no se evalúan las reglas 2 y 3.",
+  "Regla 2 (solo proveedores homologados): si con_iva es estrictamente mayor que el presupuesto restante del departamento, el estado es 'escalada', el aprobador 'finanzas' y el motivo 'sin_presupuesto'. No se descuenta nada. La regla 2 usa solo el importe de esta solicitud; si el importe es igual al presupuesto, se aprueba.",
+  "Regla 3: en otro caso, el estado es 'aprobada' y el motivo null. Se resta con_iva del presupuesto del departamento.",
+  "Aprobador de la regla 3: acumulado = con_iva + la suma de con_iva de las solicitudes que cumplan todo esto: ya procesadas, con estado actual 'aprobada' (las canceladas no cuentan), mismo proveedor, mismo departamento y 0 <= (fecha_actual - fecha_previa).days <= 7.",
+  "Umbrales del aprobador: acumulado <= 500 → 'auto'; <= 5000 → 'jefe_departamento'; > 5000 → 'direccion'.",
+  "Regla 4: revision_it = true solo si la categoría es 'software' y el estado es 'aprobada' o 'escalada'. En cualquier otro caso es false, incluidos 'rechazada' y 'cancelada'.",
+  "Cancelación: la solicitud 'referencia' pasa a estado 'cancelada', aprobador null, motivo 'cancelada_por_solicitante' y revision_it false.",
+  "Presupuesto al cancelar: solo si la solicitud estaba 'aprobada' justo antes de cancelarse, se suma su con_iva de vuelta al presupuesto del departamento. Si estaba 'escalada' o 'rechazada', el presupuesto no cambia.",
+  "Cancelación que llega antes que su solicitud (no ocurre en estos datos, pero hay que ser robusto): guardar el id como cancelado. Cuando se procese esa solicitud, marcarla directamente como cancelada y no tocar el presupuesto.",
+  "Presupuesto_final: incluir todos los departamentos de presupuesto_inicial, como números con 2 decimales."
+ ],
+ "pasos": [
+  {
+   "n": 1,
+   "accion": "Cargar los datos",
+   "detalle": "Leer entradas.json con json.load. Guardar homologados en un set y convertir los presupuestos a Decimal(str(valor))."
+  },
+  {
+   "n": 2,
+   "accion": "Implementar parse_importe(texto)",
+   "detalle": "Hacer lo siguiente, en este orden: detectar la divisa ('€' o 'EUR' → EUR; 'USD'; 'GBP'); extraer el número con la regex r'[\\d.,]+'; normalizar el número según el formato de la divisa; convertir a EUR con un redondeo a 2 decimales; aplicar el IVA si el texto contiene '+ IVA', con otro redondeo. Devolver un Decimal con 2 decimales."
+  },
+  {
+   "n": 3,
+   "accion": "Ordenar las entradas",
+   "detalle": "Usar sorted(entradas, key=lambda e: (e['fecha'], e['id']))."
+  },
+  {
+   "n": 4,
+   "accion": "Procesar cada solicitud",
+   "detalle": "Calcular con_iva y aplicar la regla 1 (con su excepción), luego la 2 y luego la 3, calculando el acumulado sobre el registro interno. Guardar en el registro interno: estado, aprobador, motivo, categoría, departamento, proveedor, fecha (como date) e importe. Calcular revision_it con la regla 4."
+  },
+  {
+   "n": 5,
+   "accion": "Procesar cada cancelación",
+   "detalle": "Buscar la solicitud referenciada. Si estaba 'aprobada', devolver su importe al presupuesto del departamento. Después, fijar estado 'cancelada', aprobador None, motivo 'cancelada_por_solicitante' y revision_it False."
+  },
+  {
+   "n": 6,
+   "accion": "Construir la salida",
+   "detalle": "decisiones = {id: {estado, aprobador, motivo, revision_it}} solo para las solicitudes. presupuesto_final = {dep: float(valor.quantize(Decimal('0.01')))}. Imprimir con json.dumps(ensure_ascii=False, indent=2)."
+  }
+ ],
+ "verificacion": [
+  "Hay 16 decisiones (una por solicitud SC-117-00 a SC-117-15) y ningún id CX aparece en ellas.",
+  "Importes con IVA esperados: SC-117-13=548.30, SC-117-07=2569.88, SC-117-08=171.71, SC-117-00=292.14, SC-117-12=525.92, SC-117-10=3280.52, SC-117-02=2077.01, SC-117-14=327.11, SC-117-15=357.81.",
+  "Estados esperados: SC-117-13 cancelada; SC-117-00 cancelada (estaba escalada, así que no se devuelve presupuesto); SC-117-04, 05, 01, 03, 09, 11 y 06 rechazada/proveedor_no_homologado; SC-117-07 escalada/finanzas/sin_presupuesto; SC-117-12, 02 y 10 aprobada/jefe_departamento; SC-117-14 aprobada/auto; SC-117-15 aprobada/jefe_departamento (acumulado 684.92 con SC-117-14); SC-117-08 aprobada/auto.",
+  "revision_it es false en todas las decisiones de estos datos: SC-117-13 es software pero está cancelada, y SC-117-06 es software pero está rechazada.",
+  "Presupuesto_final esperado: marketing 5615.08, operaciones 2993.56, it 251.28, rrhh 4600.00.",
+  "Invariante: presupuesto_final[dep] = presupuesto_inicial[dep] - suma de los importes de las solicitudes de ese departamento con estado final 'aprobada'. Comprobarlo con un assert.",
+  "Todo estado pertenece a {aprobada, rechazada, escalada, cancelada}. Si el estado es aprobada, el motivo es None. Si es rechazada o cancelada, el aprobador es None."
+ ],
+ "riesgos": [
+  "Tratar '453,14' como 45314 o '1.234,56' con float: la normalización del formato europeo solo se aplica a EUR.",
+  "Usar round() de float, que redondea 'half-even' y arrastra errores binarios. Usar Decimal con ROUND_HALF_UP.",
+  "Redondear una sola vez en lugar de dos (conversión y luego IVA).",
+  "Aplicar la regla 2 a proveedores no homologados, o no respetar la excepción de hardware urgente (solo aplica a no homologados).",
+  "Incluir solicitudes canceladas o escaladas en el acumulado, o usar el acumulado en la regla 2.",
+  "Devolver presupuesto al cancelar una solicitud que no estaba aprobada (SC-117-00 estaba escalada).",
+  "No ordenar el lote, u ordenar por id numérico en vez de por string.",
+  "Poner revision_it true en solicitudes software rechazadas o canceladas.",
+  "Serializar Decimal directamente con json.dumps (falla): convertir a float o str antes. Usar null de JSON (None) y no la cadena 'null'."
+ ]
+}
+
+Escribe el programa. Debe leer los archivos del directorio actual e imprimir por stdout SOLO el JSON del estado final.

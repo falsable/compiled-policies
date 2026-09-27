@@ -1,0 +1,180 @@
+import json
+from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
+import re
+
+def round2(value):
+    """Redondea a 2 decimales usando ROUND_HALF_UP"""
+    return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+def parse_importe(texto, tipos_cambio):
+    """Parsea un importe en formato 'numero moneda sufijo' y devuelve el importe en EUR con IVA"""
+    # Detectar moneda
+    if 'USD' in texto:
+        moneda = 'USD'
+    elif 'GBP' in texto:
+        moneda = 'GBP'
+    elif '€' in texto or 'EUR' in texto:
+        moneda = 'EUR'
+    else:
+        raise ValueError(f"Moneda no reconocida: {texto}")
+    
+    # Detectar IVA
+    if '+ IVA' in texto:
+        aplicar_iva = True
+    elif '(IVA incluido)' in texto:
+        aplicar_iva = False
+    else:
+        raise ValueError(f"IVA no reconocido: {texto}")
+    
+    # Extraer número
+    match = re.search(r'[\d.,]+', texto)
+    if not match:
+        raise ValueError(f"Número no encontrado: {texto}")
+    
+    num_str = match.group()
+    
+    # Normalizar número según moneda
+    if moneda == 'EUR':
+        if ',' in num_str:
+            num_str = num_str.replace('.', '').replace(',', '.')
+    else:
+        num_str = num_str.replace(',', '')
+    
+    numero = Decimal(num_str)
+    eur = round2(numero * tipos_cambio[moneda])
+    
+    if aplicar_iva:
+        importe = round2(eur * Decimal('1.21'))
+    else:
+        importe = eur
+    
+    return importe
+
+# Leer entradas.json
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = {k: Decimal(str(v)) for k, v in data['tipos_cambio'].items()}
+presupuesto_restante = {k: round2(Decimal(str(v))) for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+# Estado de cada solicitud
+estado_sol = {}
+
+# Ordenar entradas por fecha e id
+entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Procesar entradas
+for entrada in entradas_ordenadas:
+    if entrada['tipo'] == 'solicitud':
+        id_sol = entrada['id']
+        fecha = datetime.strptime(entrada['fecha'], '%Y-%m-%d').date()
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe_str = entrada['importe']
+        
+        # Parsear importe
+        importe = parse_importe(importe_str, tipos_cambio)
+        
+        # Guardar información básica
+        estado_sol[id_sol] = {
+            'fecha': fecha,
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'categoria': categoria,
+            'importe': importe,
+            'estado': None,
+            'aprobador': None,
+            'motivo': None,
+            'revision_it': False
+        }
+        
+        # Regla 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado_sol[id_sol]['estado'] = 'escalada'
+                estado_sol[id_sol]['aprobador'] = 'direccion'
+                estado_sol[id_sol]['motivo'] = 'excepcion_seguridad'
+            else:
+                estado_sol[id_sol]['estado'] = 'rechazada'
+                estado_sol[id_sol]['motivo'] = 'proveedor_no_homologado'
+        else:
+            # Regla 2: Importe mayor que presupuesto restante
+            if importe > presupuesto_restante[departamento]:
+                estado_sol[id_sol]['estado'] = 'escalada'
+                estado_sol[id_sol]['aprobador'] = 'finanzas'
+                estado_sol[id_sol]['motivo'] = 'sin_presupuesto'
+            else:
+                # Regla 3: Aprobada
+                estado_sol[id_sol]['estado'] = 'aprobada'
+                
+                # Calcular acumulado
+                fecha_inicio = fecha - timedelta(days=7)
+                acum = importe
+                
+                for id_prev, sol_prev in estado_sol.items():
+                    if (id_prev != id_sol and
+                        sol_prev['estado'] == 'aprobada' and
+                        sol_prev['proveedor'] == proveedor and
+                        sol_prev['departamento'] == departamento and
+                        fecha_inicio <= sol_prev['fecha'] <= fecha):
+                        acum += sol_prev['importe']
+                
+                # Determinar aprobador
+                if acum <= Decimal('500'):
+                    estado_sol[id_sol]['aprobador'] = 'auto'
+                elif acum <= Decimal('5000'):
+                    estado_sol[id_sol]['aprobador'] = 'jefe_departamento'
+                else:
+                    estado_sol[id_sol]['aprobador'] = 'direccion'
+                
+                # Descontar del presupuesto
+                presupuesto_restante[departamento] -= importe
+        
+        # Regla 4: revision_it
+        if (estado_sol[id_sol]['categoria'] == 'software' and
+            estado_sol[id_sol]['estado'] in ['aprobada', 'escalada']):
+            estado_sol[id_sol]['revision_it'] = True
+        
+    elif entrada['tipo'] == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        if referencia in estado_sol:
+            sol = estado_sol[referencia]
+            
+            # Si estaba aprobada, devolver presupuesto
+            if sol['estado'] == 'aprobada':
+                presupuesto_restante[sol['departamento']] += sol['importe']
+            
+            # Cambiar estado
+            sol['estado'] = 'cancelada'
+            sol['aprobador'] = None
+            sol['motivo'] = 'cancelada_por_solicitante'
+            sol['revision_it'] = False
+
+# Construir la salida
+decisiones = {}
+for id_sol in sorted(estado_sol.keys()):
+    if id_sol.startswith('SC-'):
+        sol = estado_sol[id_sol]
+        decisiones[id_sol] = {
+            'estado': sol['estado'],
+            'aprobador': sol['aprobador'],
+            'motivo': sol['motivo'],
+            'revision_it': sol['revision_it']
+        }
+
+presupuesto_final = {}
+for dep in data['presupuesto_inicial'].keys():
+    presupuesto_final[dep] = float(presupuesto_restante[dep])
+
+resultado = {
+    'decisiones': decisiones,
+    'presupuesto_final': presupuesto_final
+}
+
+print(json.dumps(resultado, ensure_ascii=False, indent=2))

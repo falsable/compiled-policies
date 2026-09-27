@@ -1,0 +1,5 @@
+{
+ "codigo": "SIN_VERIFICADOR",
+ "mensaje": "El contrato no tiene verificadores",
+ "reintentable": false
+}

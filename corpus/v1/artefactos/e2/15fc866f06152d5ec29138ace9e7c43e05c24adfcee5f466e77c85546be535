@@ -1,0 +1,187 @@
+```python
+import json
+import re
+from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
+
+# Load data
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = data['tipos_cambio']
+presupuesto_inicial = data['presupuesto_inicial']
+entradas = data['entradas']
+
+# Initialize budget as Decimal
+presupuesto = {dep: Decimal(str(v)) for dep, v in presupuesto_inicial.items()}
+
+def parsear_importe(texto):
+    """Parse amount from text string."""
+    # Detect currency
+    if 'EUR' in texto or '€' in texto:
+        divisa = 'EUR'
+    elif 'USD' in texto:
+        divisa = 'USD'
+    elif 'GBP' in texto:
+        divisa = 'GBP'
+    else:
+        raise ValueError(f"Unknown currency in: {texto}")
+    
+    # Extract number
+    match = re.search(r'[0-9][0-9.,]*', texto)
+    if not match:
+        raise ValueError(f"No number found in: {texto}")
+    
+    num_str = match.group()
+    
+    # Parse based on currency
+    if divisa == 'EUR':
+        # If contains ',', it's Spanish format
+        if ',' in num_str:
+            num_str = num_str.replace('.', '').replace(',', '.')
+    else:  # USD or GBP
+        num_str = num_str.replace(',', '')
+    
+    # Convert to Decimal and apply exchange rate
+    importe = Decimal(num_str)
+    tipo = Decimal(str(tipos_cambio[divisa]))
+    eur = (importe * tipo).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    # Apply IVA if needed
+    if '+ IVA' in texto:
+        importe_final = (eur * Decimal('1.21')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    else:
+        importe_final = eur
+    
+    return importe_final
+
+# Sort entries by (fecha, id)
+entradas_sorted = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Track state of each request
+estado_sol = {}
+canceladas_pendientes = set()
+
+for entrada in entradas_sorted:
+    if entrada['tipo'] == 'cancelacion':
+        ref = entrada['referencia']
+        if ref in estado_sol:
+            old_estado = estado_sol[ref]['estado']
+            if old_estado == 'aprobada':
+                presupuesto[estado_sol[ref]['departamento']] += estado_sol[ref]['importe']
+            
+            estado_sol[ref]['estado'] = 'cancelada'
+            estado_sol[ref]['aprobador'] = None
+            estado_sol[ref]['motivo'] = 'cancelada_por_solicitante'
+            estado_sol[ref]['revision_it'] = False
+        else:
+            canceladas_pendientes.add(ref)
+    
+    else:  # solicitud
+        id_sol = entrada['id']
+        
+        if id_sol in canceladas_pendientes:
+            importe_final = parsear_importe(entrada['importe'])
+            estado_sol[id_sol] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False,
+                'importe': importe_final,
+                'departamento': entrada['departamento'],
+                'proveedor': entrada['proveedor'],
+                'fecha': datetime.strptime(entrada['fecha'], '%Y-%m-%d').date()
+            }
+            canceladas_pendientes.discard(id_sol)
+            continue
+        
+        importe_final = parsear_importe(entrada['importe'])
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        fecha = datetime.strptime(entrada['fecha'], '%Y-%m-%d').date()
+        
+        estado = None
+        aprobador = None
+        motivo = None
+        
+        # RULE 1: Check if provider is homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        
+        # RULE 2: Check if importe > remaining budget
+        elif importe_final > presupuesto[departamento]:
+            estado = 'escalada'
+            aprobador = 'finanzas'
+            motivo = 'sin_presupuesto'
+        
+        # RULE 3: Approve and determine approver
+        else:
+            estado = 'aprobada'
+            motivo = None
+            
+            acumulado = importe_final
+            for id_prev, sol_prev in estado_sol.items():
+                if (sol_prev['estado'] == 'aprobada' and
+                    sol_prev['proveedor'] == proveedor and
+                    sol_prev['departamento'] == departamento):
+                    days_diff = (fecha - sol_prev['fecha']).days
+                    if 0 <= days_diff <= 7:
+                        acumulado += sol_prev['importe']
+            
+            if acumulado <= 500:
+                aprobador = 'auto'
+            elif acumulado <= 5000:
+                aprobador = 'jefe_departamento'
+            else:
+                aprobador = 'direccion'
+            
+            presupuesto[departamento] -= importe_final
+        
+        # RULE 4: revision_it
+        revision_it = (categoria == 'software' and estado in ['aprobada', 'escalada'])
+        
+        estado_sol[id_sol] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it,
+            'importe': importe_final,
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'fecha': fecha
+        }
+
+# Build decisiones (only for solicitudes)
+decisiones = {}
+for id_sol in sorted([k for k in estado_sol.keys() if k.startswith('SC-')]):
+    sol = estado_sol[id_sol]
+    decisiones[id_sol] = {
+        'estado': sol['estado'],
+        'aprobador': sol['aprobador'],
+        'motivo': sol['motivo'],
+        'revision_it': sol['revision_it']
+    }
+
+# Build presupuesto_final
+presupuesto_final = {}
+for dep in presupuesto_inicial.keys():
+    presupuesto_final[dep] = float(presupuesto[dep].quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+
+# Build output
+resultado = {
+    'decisiones': decisiones,
+    'presupuesto_final': presupuesto_final
+}
+
+print(json.dumps(resultado, ensure_ascii=False, indent=2))
+```

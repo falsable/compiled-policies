@@ -1,0 +1,83 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+
+# 1. Cargar datos
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=True)
+
+# 2. Limpiar: strip de espacios
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col] = df[col].str.strip()
+
+# 3. Deduplicar por id (mantener primera aparición)
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# 4. Convertir columnas numéricas
+numeric_cols = [col for col in df.columns if col not in ['id', 'region', 'comentario']]
+for col in numeric_cols:
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# 5. Seleccionar columnas elegibles (máximo 20% ausentes)
+eligible_cols = [col for col in numeric_cols if df[col].isna().sum() / len(df) <= 0.20]
+
+# 6. Encontrar par principal con máxima correlación absoluta
+best_pair = None
+if len(eligible_cols) >= 2:
+    corr_matrix = df[eligible_cols].corr(method='pearson')
+    candidates = []
+    
+    for i in range(len(eligible_cols)):
+        for j in range(i + 1, len(eligible_cols)):
+            corr_val = corr_matrix.loc[eligible_cols[i], eligible_cols[j]]
+            if pd.notna(corr_val):
+                abs_corr = abs(corr_val)
+                pair = tuple(sorted([eligible_cols[i], eligible_cols[j]]))
+                candidates.append((abs_corr, pair, corr_val))
+    
+    if candidates:
+        # Ordenar por correlación absoluta descendente, luego alfabéticamente
+        candidates.sort(key=lambda x: (-x[0], x[1]))
+        best_pair = list(candidates[0][1])
+
+# 7. Detectar anomalías por región
+anomaly_ids = set()
+for region in df['region'].unique():
+    # Seleccionar datos de la región
+    if pd.isna(region):
+        region_data = df[df['region'].isna()]
+    else:
+        region_data = df[df['region'] == region]
+    
+    # Para cada columna numérica
+    for col in numeric_cols:
+        values = region_data[col].dropna()
+        
+        if len(values) == 0:
+            continue
+        
+        # Calcular mediana y MAD
+        median = values.median()
+        mad = (values - median).abs().median()
+        
+        # Si MAD es 0, no hay anomalías en esta columna/región
+        if mad == 0:
+            continue
+        
+        # Calcular umbral y marcar anomalías
+        threshold = 4.5 * 1.4826 * mad
+        mask = (region_data[col] - median).abs() > threshold
+        
+        for idx in region_data[mask].index:
+            anomaly_ids.add(df.loc[idx, 'id'])
+
+# 8. Construir y mostrar resultado
+result = {
+    'par': best_pair if best_pair else [],
+    'anomalias': sorted(list(anomaly_ids))
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

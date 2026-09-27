@@ -1,0 +1,167 @@
+import json
+import re
+from datetime import datetime
+
+# Cargar datos
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = data['tipos_cambio']
+presupuesto = {k: v for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+def parse_importe(texto):
+    """Extrae el importe en EUR con IVA incluido"""
+    # Detectar moneda
+    if 'USD' in texto:
+        moneda = 'USD'
+    elif 'GBP' in texto:
+        moneda = 'GBP'
+    else:
+        moneda = 'EUR'
+    
+    # Detectar IVA
+    if '+ IVA' in texto:
+        iva_incluido = False
+    elif 'IVA incluido' in texto:
+        iva_incluido = True
+    else:
+        raise ValueError(f"No se encontró marcador de IVA en: {texto}")
+    
+    # Extraer el número
+    match = re.search(r'[\d.,]+', texto)
+    if not match:
+        raise ValueError(f"No se encontró número en: {texto}")
+    
+    numero_str = match.group()
+    
+    # Parsear según moneda
+    if moneda == 'EUR':
+        if ',' in numero_str:
+            # Formato español: 1.078.590,00 -> 1078590.00
+            numero_str = numero_str.replace('.', '').replace(',', '.')
+        valor = float(numero_str)
+    else:
+        # USD/GBP: formato anglosajón, quitar comas
+        valor = float(numero_str.replace(',', ''))
+    
+    # Convertir a EUR
+    eur = round(valor * tipos_cambio[moneda], 2)
+    
+    # Aplicar IVA
+    if not iva_incluido:
+        eur = round(eur * 1.21, 2)
+    
+    return eur
+
+# Ordenar entradas por (fecha, id)
+entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Procesar entradas
+decisiones = {}
+registro_solicitudes = {}
+
+for entrada in entradas_ordenadas:
+    if entrada['tipo'] == 'solicitud':
+        id_sol = entrada['id']
+        fecha = datetime.strptime(entrada['fecha'], '%Y-%m-%d').date()
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe_texto = entrada['importe']
+        
+        # Parsear importe
+        total = parse_importe(importe_texto)
+        
+        # Guardar información de la solicitud
+        registro_solicitudes[id_sol] = {
+            'fecha': fecha,
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'total': total,
+            'categoria': categoria
+        }
+        
+        # REGLA 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        else:
+            # REGLA 2: Importe mayor que presupuesto restante
+            if total > presupuesto[departamento]:
+                estado = 'escalada'
+                aprobador = 'finanzas'
+                motivo = 'sin_presupuesto'
+            else:
+                # REGLA 3: Aprobada, calcular acumulado
+                estado = 'aprobada'
+                motivo = None
+                
+                # Calcular acumulado: solicitud actual + aprobadas de mismo proveedor/departamento en los 7 días previos
+                acumulado = total
+                for id_prev in decisiones:
+                    if decisiones[id_prev]['estado'] != 'aprobada':
+                        continue
+                    info_prev = registro_solicitudes[id_prev]
+                    if info_prev['proveedor'] != proveedor or info_prev['departamento'] != departamento:
+                        continue
+                    dias_diff = (fecha - info_prev['fecha']).days
+                    if 0 <= dias_diff <= 7:
+                        acumulado += info_prev['total']
+                
+                # Determinar aprobador según acumulado
+                if acumulado <= 500:
+                    aprobador = 'auto'
+                elif acumulado <= 5000:
+                    aprobador = 'jefe_departamento'
+                else:
+                    aprobador = 'direccion'
+                
+                # Descontar presupuesto
+                presupuesto[departamento] = round(presupuesto[departamento] - total, 2)
+        
+        # REGLA 4: revision_it
+        revision_it = categoria == 'software' and estado in ['aprobada', 'escalada']
+        
+        # Guardar decisión
+        decisiones[id_sol] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+    
+    elif entrada['tipo'] == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        if referencia in decisiones:
+            # Si estaba aprobada, devolver presupuesto
+            if decisiones[referencia]['estado'] == 'aprobada':
+                info_ref = registro_solicitudes[referencia]
+                presupuesto[info_ref['departamento']] = round(
+                    presupuesto[info_ref['departamento']] + info_ref['total'], 2
+                )
+            
+            # Actualizar la solicitud a cancelada
+            decisiones[referencia] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False
+            }
+
+# Construir salida
+salida = {
+    'decisiones': decisiones,
+    'presupuesto_final': {k: round(v, 2) for k, v in presupuesto.items()}
+}
+
+print(json.dumps(salida, ensure_ascii=False, indent=2))

@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Ambas políticas especifican idénticos criterios. Las diferencias son solo de redacción y orden: 'como mucho un 20%' vs '≤ 20%'; 'valores no ausentes' vs 'valor presente'; '4.5 desviaciones robustas (MAD × 1.4826)' vs '4.5 × (MAD × 1.4826)'. Todos los umbrales (20%, 4.5), criterios (máximo |Pearson|, mediana dentro de region, MAD = 0 → sin anomalía), y reglas (primera aparición de duplicados, ignorar ausentes) son idénticos. Un programa para POLÍTICA A funcionaría sin cambios para POLÍTICA B."
+}
+```

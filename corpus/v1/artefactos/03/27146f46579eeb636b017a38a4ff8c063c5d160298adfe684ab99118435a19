@@ -1,0 +1,178 @@
+import json
+import re
+from decimal import Decimal, ROUND_HALF_UP
+from datetime import datetime
+
+def parse_importe(texto, tipos_cambio):
+    """Parsea un importe en formato texto y devuelve el valor en EUR con IVA"""
+    
+    # Detectar moneda
+    if 'USD' in texto:
+        moneda = 'USD'
+    elif 'GBP' in texto:
+        moneda = 'GBP'
+    else:
+        moneda = 'EUR'
+    
+    # Detectar IVA
+    tiene_iva_suma = '+ IVA' in texto
+    tiene_iva_incluido = '(IVA incluido)' in texto
+    
+    # Extraer el número
+    match = re.search(r'[0-9][0-9.,]*', texto)
+    if not match:
+        raise ValueError(f"No se pudo extraer número de: {texto}")
+    
+    numero_str = match.group()
+    
+    # Parsear según moneda
+    if moneda in ['USD', 'GBP']:
+        # Formato anglosajón: eliminar comas, punto es decimal
+        valor_str = numero_str.replace(',', '')
+        valor = Decimal(valor_str)
+    else:  # EUR
+        # Si contiene coma, es formato español
+        if ',' in numero_str:
+            valor_str = numero_str.replace('.', '').replace(',', '.')
+        else:
+            valor_str = numero_str
+        valor = Decimal(valor_str)
+    
+    # Convertir a EUR
+    tipo = Decimal(str(tipos_cambio[moneda]))
+    eur = (valor * tipo).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    # Aplicar IVA
+    if tiene_iva_suma:
+        importe = (eur * Decimal('1.21')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    elif tiene_iva_incluido:
+        importe = eur
+    else:
+        raise ValueError(f"No se detectó IVA en: {texto}")
+    
+    return importe
+
+# Cargar datos
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = data['tipos_cambio']
+presupuesto_inicial = {k: Decimal(str(v)) for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+# Copiar presupuesto restante
+presupuesto_restante = {k: Decimal(str(v)) for k, v in presupuesto_inicial.items()}
+
+# Parsear importes y guardar info
+info_solicitud = {}
+for entrada in entradas:
+    if entrada['tipo'] == 'solicitud':
+        importe = parse_importe(entrada['importe'], tipos_cambio)
+        info_solicitud[entrada['id']] = {
+            'departamento': entrada['departamento'],
+            'proveedor': entrada['proveedor'],
+            'fecha': datetime.strptime(entrada['fecha'], '%Y-%m-%d').date(),
+            'importe': importe,
+            'categoria': entrada['categoria'],
+            'urgente': entrada['urgente']
+        }
+
+# Ordenar entradas por (fecha, id)
+entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Procesar entradas
+decisiones = {}
+
+for entrada in entradas_ordenadas:
+    if entrada['tipo'] == 'solicitud':
+        id_sol = entrada['id']
+        info = info_solicitud[id_sol]
+        depto = info['departamento']
+        proveedor = info['proveedor']
+        fecha = info['fecha']
+        importe = info['importe']
+        categoria = info['categoria']
+        urgente = info['urgente']
+        
+        # REGLA 1: Proveedor no homologado
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                decisiones[id_sol] = {
+                    'estado': 'escalada',
+                    'aprobador': 'direccion',
+                    'motivo': 'excepcion_seguridad',
+                    'revision_it': categoria == 'software'
+                }
+            else:
+                decisiones[id_sol] = {
+                    'estado': 'rechazada',
+                    'aprobador': None,
+                    'motivo': 'proveedor_no_homologado',
+                    'revision_it': False
+                }
+        # REGLA 2: Presupuesto insuficiente
+        elif importe > presupuesto_restante[depto]:
+            decisiones[id_sol] = {
+                'estado': 'escalada',
+                'aprobador': 'finanzas',
+                'motivo': 'sin_presupuesto',
+                'revision_it': categoria == 'software'
+            }
+        # REGLA 3: Aprobada
+        else:
+            # Calcular acumulado: esta solicitud + aprobadas del mismo proveedor/depto en últimos 7 días
+            acumulado = importe
+            for id_prev in decisiones:
+                prev = decisiones[id_prev]
+                if prev['estado'] == 'aprobada':
+                    prev_info = info_solicitud[id_prev]
+                    if (prev_info['proveedor'] == proveedor and 
+                        prev_info['departamento'] == depto):
+                        dias_diff = (fecha - prev_info['fecha']).days
+                        if 0 <= dias_diff <= 7:
+                            acumulado += prev_info['importe']
+            
+            # Determinar aprobador según acumulado
+            if acumulado <= Decimal('500'):
+                aprobador = 'auto'
+            elif acumulado <= Decimal('5000'):
+                aprobador = 'jefe_departamento'
+            else:
+                aprobador = 'direccion'
+            
+            decisiones[id_sol] = {
+                'estado': 'aprobada',
+                'aprobador': aprobador,
+                'motivo': None,
+                'revision_it': categoria == 'software'
+            }
+            
+            # Descontar presupuesto
+            presupuesto_restante[depto] -= importe
+    
+    elif entrada['tipo'] == 'cancelacion':
+        ref = entrada['referencia']
+        if ref in decisiones:
+            if decisiones[ref]['estado'] == 'aprobada':
+                # Devolver importe si estaba aprobada
+                presupuesto_restante[info_solicitud[ref]['departamento']] += info_solicitud[ref]['importe']
+            
+            # Actualizar estado de la solicitud cancelada
+            decisiones[ref] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False
+            }
+
+# Construir salida
+salida = {
+    'decisiones': decisiones,
+    'presupuesto_final': {
+        k: float(v.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        for k, v in presupuesto_restante.items()
+    }
+}
+
+print(json.dumps(salida, ensure_ascii=False, indent=2))

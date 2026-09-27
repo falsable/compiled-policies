@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bloques.local/contracts/v1/bloques.schema.json",
+  "title": "Motor de bloques validados — contrato v1",
+  "description": "Fuente única de verdad (ADR-001-API). Tipos Python generados con datamodel-code-generator y tipos Rust con typify. Toda instancia lleva schema_version.",
+  "$defs": {
+    "SchemaVersion": {"type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$"},
+    "Hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "Eur": {"type": "number", "minimum": 0},
+    "Prob": {"type": "number", "minimum": 0, "maximum": 1},
+    "Id": {"type": "string", "pattern": "^[a-z]{2,4}_[0-9A-HJKMNP-TV-Z]{26}$",
+           "description": "prefijo + ULID (p. ej. tar_01J…, evt_01J…)"},
+
+    "Verificador": {
+      "type": "object",
+      "required": ["id", "tipo", "coste_eur", "congelado"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "tipo": {"enum": ["determinista", "estadistico", "humano"]},
+        "coste_eur": {"$ref": "#/$defs/Eur"},
+        "tpr": {"$ref": "#/$defs/Prob", "default": 1},
+        "fpr": {"$ref": "#/$defs/Prob", "default": 0},
+        "umbral": {"$ref": "#/$defs/Prob"},
+        "congelado": {"const": true, "description": "RN1: fijado antes de ejecutar; el ejecutor no lo modifica"}
+      },
+      "allOf": [
+        {"if": {"properties": {"tipo": {"const": "estadistico"}}}, "then": {"required": ["umbral"]}},
+        {"if": {"properties": {"tipo": {"const": "determinista"}}},
+         "then": {"properties": {"tpr": {"const": 1}, "fpr": {"const": 0}}}}
+      ]
+    },
+
+    "ContratoExito": {
+      "type": "object",
+      "required": ["schema_version", "proceso", "estado_objetivo", "verificadores", "p_min", "V_eur", "presupuesto_tarea_eur"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/SchemaVersion"},
+        "proceso": {"type": "string", "pattern": "^[a-z0-9_\\-]{2,64}$"},
+        "estado_objetivo": {"type": "object", "description": "JSON Schema del estado final esperado"},
+        "verificadores": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Verificador"},
+                          "description": "Del más barato al más caro (el proveedor valida el orden). minItems=1: escenario 'Proceso sin forma de verificar'"},
+        "p_min": {"$ref": "#/$defs/Prob"},
+        "V_eur": {"type": "number", "exclusiveMinimum": 0, "description": "RN2: valor de resolver = coste de la alternativa"},
+        "k_pass": {"type": "integer", "minimum": 1, "default": 5},
+        "presupuesto_tarea_eur": {"type": "number", "exclusiveMinimum": 0, "description": "RN10"}
+      }
+    },
+
+    "PerfilValidez": {
+      "type": "object",
+      "description": "Dominio de validez inferido de entradas normales (estilo TFDV). RN6: ≥ 30 ejemplos.",
+      "required": ["n_ejemplos", "conjuntos", "rangos"],
+      "additionalProperties": false,
+      "properties": {
+        "n_ejemplos": {"type": "integer", "minimum": 30},
+        "conjuntos": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}},
+                      "description": "rasgo → valores vistos (monedas, formatos, meses, regiones…)"},
+        "rangos": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+                   "description": "rasgo → [min, max] vistos"},
+        "tolerancia_rango": {"type": "number", "minimum": 1, "default": 1.5}
+      }
+    },
+
+    "Bloque": {
+      "type": "object",
+      "required": ["schema_version", "id", "proceso", "version", "hash_codigo", "politica_hash", "politica_texto",
+                   "dominio_validez", "validacion", "coste_compilacion_eur", "estado"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/SchemaVersion"},
+        "id": {"$ref": "#/$defs/Id"},
+        "proceso": {"type": "string"},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "hash_codigo": {"$ref": "#/$defs/Hash", "description": "el código vive en el almacén direccionado por contenido"},
+        "politica_hash": {"$ref": "#/$defs/Hash"},
+        "politica_texto": {"type": "string", "minLength": 1},
+        "dominio_validez": {"$ref": "#/$defs/PerfilValidez"},
+        "validacion": {
+          "type": "object", "required": ["aprobados", "total"], "additionalProperties": false,
+          "properties": {"aprobados": {"type": "integer", "minimum": 0}, "total": {"type": "integer", "minimum": 5}}
+        },
+        "coste_compilacion_eur": {"$ref": "#/$defs/Eur"},
+        "estado": {"enum": ["candidato", "aprobado", "retirado"]},
+        "aprobado_por": {"type": "string"}
+      },
+      "allOf": [
+        {"if": {"properties": {"estado": {"const": "aprobado"}}}, "then": {"required": ["aprobado_por"]}}
+      ]
+    },
+
+    "TareaSolicitud": {
+      "type": "object",
+      "required": ["schema_version", "proceso", "clave_idempotencia", "politica_texto", "entradas"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/SchemaVersion"},
+        "proceso": {"type": "string"},
+        "clave_idempotencia": {"type": "string", "minLength": 8, "maxLength": 128},
+        "politica_texto": {"type": "string", "minLength": 1},
+        "entradas": {
+          "type": "object",
+          "description": "Datos en línea o referencias a ficheros por hash",
+          "properties": {
+            "json": {"type": "object"},
+            "ficheros": {"type": "object", "additionalProperties": {"$ref": "#/$defs/Hash"}}
+          },
+          "minProperties": 1, "additionalProperties": false
+        },
+        "presupuesto_eur": {"$ref": "#/$defs/Eur", "description": "sobrescribe presupuesto_tarea_eur si es menor"}
+      }
+    },
+
+    "Evidencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hash_igual": {"type": "boolean"},
+        "juez_p": {"$ref": "#/$defs/Prob"},
+        "umbral_reutilizacion": {"$ref": "#/$defs/Prob", "description": "RN3: 1 − (c_gen + (1−q_gen)·V)/V"},
+        "perfil_motivos": {"type": "array", "items": {"type": "string"}},
+        "acuerdo": {"type": "boolean", "description": "verificación cruzada bloque vs solución nueva"},
+        "bloque_reventó": {"type": "boolean"},
+        "invariantes_violados": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+
+    "Resolucion": {
+      "type": "object",
+      "required": ["schema_version", "tarea_id", "evento_id", "decision", "salida", "evidencia", "coste"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/SchemaVersion"},
+        "tarea_id": {"$ref": "#/$defs/Id"},
+        "evento_id": {"$ref": "#/$defs/Id"},
+        "decision": {"enum": ["reutilizar", "generar", "verificacion_cruzada", "escalar", "no_resuelta"]},
+        "salida": {"type": ["object", "null"], "description": "null si decision ∈ {escalar, no_resuelta} (RN8)"},
+        "bloque": {
+          "type": "object", "additionalProperties": false, "required": ["id", "version"],
+          "properties": {"id": {"$ref": "#/$defs/Id"}, "version": {"type": "string"}}
+        },
+        "escalado_id": {"$ref": "#/$defs/Id"},
+        "evidencia": {"$ref": "#/$defs/Evidencia"},
+        "coste": {
+          "type": "object", "required": ["generacion_eur", "juez_eur", "total_eur"], "additionalProperties": false,
+          "properties": {"generacion_eur": {"$ref": "#/$defs/Eur"}, "juez_eur": {"$ref": "#/$defs/Eur"},
+                         "total_eur": {"$ref": "#/$defs/Eur"}}
+        }
+      },
+      "allOf": [
+        {"if": {"properties": {"decision": {"enum": ["escalar", "no_resuelta"]}}},
+         "then": {"properties": {"salida": {"type": "null"}}}},
+        {"if": {"properties": {"decision": {"const": "escalar"}}}, "then": {"required": ["escalado_id"]}},
+        {"if": {"properties": {"decision": {"enum": ["reutilizar", "verificacion_cruzada"]}}},
+         "then": {"required": ["bloque"], "properties": {"salida": {"type": "object"}}}}
+      ]
+    },
+
+    "PasoEvento": {
+      "type": "object",
+      "required": ["tipo", "resultado", "coste_eur"],
+      "additionalProperties": false,
+      "properties": {
+        "tipo": {"enum": ["hash", "juez", "perfil", "ejecutar_bloque", "invariantes", "generar_plan",
+                          "generar_programa", "ejecutar_programa", "comparar", "escalar", "presupuesto"]},
+        "resultado": {"type": "string"},
+        "prob": {"$ref": "#/$defs/Prob"},
+        "coste_eur": {"$ref": "#/$defs/Eur"},
+        "artefacto": {"$ref": "#/$defs/Hash", "description": "plan, programa o salida guardados por contenido (para replay)"},
+        "modelo": {"type": "string", "description": "identificador exacto del modelo usado, si lo hubo"}
+      }
+    },
+
+    "Evento": {
+      "type": "object",
+      "description": "RN9: inmutable, solo se añade. Con los artefactos por hash permite reproducir sin llamar al generador.",
+      "required": ["schema_version", "evento_id", "tarea_id", "ts", "proceso", "hash_entradas", "hash_politica",
+                   "pasos", "decision", "coste_total_eur"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/SchemaVersion"},
+        "evento_id": {"$ref": "#/$defs/Id"},
+        "tarea_id": {"$ref": "#/$defs/Id"},
+        "ts": {"type": "string", "format": "date-time"},
+        "proceso": {"type": "string"},
+        "clave_idempotencia": {"type": "string"},
+        "hash_entradas": {"$ref": "#/$defs/Hash"},
+        "hash_politica": {"$ref": "#/$defs/Hash"},
+        "bloque": {
+          "type": ["object", "null"], "additionalProperties": false,
+          "properties": {"id": {"$ref": "#/$defs/Id"}, "version": {"type": "string"}, "hash_codigo": {"$ref": "#/$defs/Hash"}}
+        },
+        "pasos": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/PasoEvento"}},
+        "decision": {"$ref": "#/$defs/Resolucion/properties/decision"},
+        "hash_salida": {"$ref": "#/$defs/Hash"},
+        "coste_total_eur": {"$ref": "#/$defs/Eur"}
+      }
+    },
+
+    "Escalado": {
+      "type": "object",
+      "required": ["schema_version", "escalado_id", "tarea_id", "motivo", "salidas", "plazo", "estado"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/SchemaVersion"},
+        "escalado_id": {"$ref": "#/$defs/Id"},
+        "tarea_id": {"$ref": "#/$defs/Id"},
+        "motivo": {"enum": ["desacuerdo_verificacion_cruzada", "presupuesto_agotado", "sin_salida_valida"]},
+        "salidas": {"type": "array", "items": {
+          "type": "object", "required": ["origen", "hash_salida"], "additionalProperties": false,
+          "properties": {"origen": {"enum": ["bloque", "nueva"]}, "hash_salida": {"$ref": "#/$defs/Hash"}}}},
+        "perfil_motivos": {"type": "array", "items": {"type": "string"}},
+        "plazo": {"type": "string", "format": "date-time"},
+        "estado": {"enum": ["abierto", "resuelto", "vencido"]},
+        "veredicto": {
+          "type": "object", "required": ["elegida", "revisor", "ts"], "additionalProperties": false,
+          "properties": {
+            "elegida": {"enum": ["bloque", "nueva", "ninguna", "manual"]},
+            "salida_manual": {"type": "object"},
+            "revisor": {"type": "string"},
+            "ts": {"type": "string", "format": "date-time"}
+          }
+        }
+      },
+      "allOf": [
+        {"if": {"properties": {"estado": {"const": "resuelto"}}}, "then": {"required": ["veredicto"]}}
+      ]
+    },
+
+    "Error": {
+      "type": "object",
+      "required": ["codigo", "mensaje", "reintentable"],
+      "additionalProperties": false,
+      "properties": {
+        "codigo": {"enum": ["CONTRATO_INVALIDO", "SIN_VERIFICADOR", "PROCESO_DESCONOCIDO", "VALIDACION_INSUFICIENTE",
+                            "PERFIL_INSUFICIENTE", "BLOQUE_NO_APROBADO", "PRESUPUESTO_AGOTADO",
+                            "GENERADOR_NO_DISPONIBLE", "JUEZ_NO_DISPONIBLE", "EVENTO_DESCONOCIDO",
+                            "REPRODUCCION_DIVERGENTE", "ESQUEMA_INCOMPATIBLE", "CLAVE_IDEMPOTENCIA_EN_CONFLICTO"]},
+        "mensaje": {"type": "string"},
+        "detalle": {"type": "object"},
+        "reintentable": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+ "schema_version": "1.0.0",
+ "tarea_id": "tar_01JAZ000000000000000000002",
+ "evento_id": "evt_01JAZ000000000000000000003",
+ "decision": "verificacion_cruzada",
+ "salida": {
+  "decisiones": {},
+  "presupuesto_final": {}
+ },
+ "bloque": {
+  "id": "blq_01JAZ000000000000000000001",
+  "version": "1.0.0"
+ },
+ "evidencia": {
+  "hash_igual": true,
+  "perfil_motivos": [
+   "meses: nuevo ['2026-10']"
+  ],
+  "acuerdo": true
+ },
+ "coste": {
+  "generacion_eur": 0.21,
+  "juez_eur": 0.0,
+  "total_eur": 0.214
+ }
+}

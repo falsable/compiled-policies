@@ -1,0 +1,95 @@
+import pandas as pd
+import numpy as np
+import json
+from itertools import combinations
+
+# 1. Cargar CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Strip espacios
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# 2. Deduplicar
+df = df.drop_duplicates(subset='id', keep='first')
+df = df.reset_index(drop=True)
+
+# Definir columnas numéricas
+num_cols = [c for c in df.columns if c not in ['id', 'region']]
+
+# 3. Convertir numéricas
+for col in num_cols:
+    def convert_to_float(x):
+        if x == '':
+            return np.nan
+        x = x.replace(',', '.')
+        try:
+            return float(x)
+        except:
+            return np.nan
+    
+    df[col] = df[col].apply(convert_to_float)
+
+# 4. Calcular elegibilidad
+elegibles = []
+for col in num_cols:
+    nan_pct = df[col].isna().mean()
+    if nan_pct <= 0.20:
+        elegibles.append(col)
+
+# 5. Calcular correlaciones
+max_corr = -1
+best_pair = None
+
+for col_a, col_b in combinations(elegibles, 2):
+    mask = df[col_a].notna() & df[col_b].notna()
+    if mask.sum() < 2:
+        continue
+    
+    corr = df.loc[mask, col_a].corr(df.loc[mask, col_b])
+    
+    if pd.isna(corr):
+        continue
+    
+    abs_corr = abs(corr)
+    
+    if abs_corr > max_corr:
+        max_corr = abs_corr
+        best_pair = sorted([col_a, col_b])
+
+# 6. Detectar anomalías
+anomalias_set = set()
+
+for region in df['region'].unique():
+    region_mask = df['region'] == region
+    region_indices = df[region_mask].index
+    
+    for col in num_cols:
+        values = df.loc[region_indices, col].dropna()
+        
+        if len(values) == 0:
+            continue
+        
+        mediana = values.median()
+        mad = (values - mediana).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        threshold = 4.5 * 1.4826 * mad
+        
+        for idx in region_indices:
+            val = df.loc[idx, col]
+            if pd.isna(val):
+                continue
+            
+            if abs(val - mediana) > threshold:
+                anomalias_set.add(df.loc[idx, 'id'])
+
+# 7. Resultado
+resultado = {
+    "par": best_pair,
+    "anomalias": sorted(list(anomalias_set))
+}
+
+print(json.dumps(resultado, ensure_ascii=False))

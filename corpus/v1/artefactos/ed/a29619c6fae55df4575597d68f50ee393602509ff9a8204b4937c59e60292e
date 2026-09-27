@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.98,
+  "diferencia": "Solo cambios de redacción y formato. POLÍTICA B usa 'hasta X €' / 'más de 5000 €' donde POLÍTICA A usa '≤ X €' / '> 5000 €' (equivalentes matemáticamente). POLÍTICA B explicita 'false en otro caso' para revision_it, que POLÍTICA A deja implícito. El orden y agrupación de información varía, pero la lógica es idéntica: mismos umbrales (500, 5000 €), misma ventana temporal (7 días), mismos criterios (proveedor, presupuesto, acumulado), mismos estados y motivos. POLÍTICA B es una versión resumida que preserva la funcionalidad completa."
+}
+```

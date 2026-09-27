@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.02,
+  "diferencia": "Cambios en los umbrales de importe acumulado para la asignación de aprobadores en Solicitudes (regla 3): POLÍTICA A usa ≤500€/≤5000€, POLÍTICA B usa ≤750€/≤4000€. Un importe acumulado de 600€ produciría aprobador 'auto' en A pero 'jefe_departamento' en B; 4500€ produciría 'jefe_departamento' en A pero 'direccion' en B. Esto genera resultados diferentes para la misma entrada."
+}
+```

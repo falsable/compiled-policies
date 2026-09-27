@@ -1,0 +1,11 @@
+{
+ "casos": 12,
+ "dicen_solo_parametros": [],
+ "sin_respuesta": [],
+ "coste_usd": 0.108334,
+ "veredicto": "H5 sigue: el extractor rechazó las 12",
+ "sha256": {
+  "script": "fa0c12b035bee8879ad869ba079cf8954f35703e6cf11981a2a7bc07d575438e",
+  "reutilizacion_parametros.py": "6bf59226cfd33f05aed69c84816f70d3378e68a6d552fbe62b9b1c9002acdfc4"
+ }
+}

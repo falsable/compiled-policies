@@ -1,0 +1,199 @@
+{
+ "tabla": [
+  {
+   "politica": "generar_siempre",
+   "reutiliza_%": 0.0,
+   "acierto_%": 93.3333,
+   "coste_medio_$": 0.1993,
+   "coste_total_$": 0.3326,
+   "fallos_silenciosos": 0,
+   "ahorro_vs_generar_%": 0.0
+  },
+  {
+   "politica": "reutilizar_siempre",
+   "reutiliza_%": 100.0,
+   "acierto_%": 77.7778,
+   "coste_medio_$": 0.0041,
+   "coste_total_$": 0.4486,
+   "fallos_silenciosos": 20,
+   "ahorro_vs_generar_%": -34.8533
+  },
+  {
+   "politica": "router_hash",
+   "reutiliza_%": 55.5556,
+   "acierto_%": 96.6667,
+   "coste_medio_$": 0.092,
+   "coste_total_$": 0.1586,
+   "fallos_silenciosos": 0,
+   "ahorro_vs_generar_%": 52.3057
+  },
+  {
+   "politica": "router_firma",
+   "reutiliza_%": 78.8889,
+   "acierto_%": 91.1111,
+   "coste_medio_$": 0.05,
+   "coste_total_$": 0.2278,
+   "fallos_silenciosos": 6,
+   "ahorro_vs_generar_%": 31.5253
+  },
+  {
+   "politica": "router_semantico",
+   "reutiliza_%": 77.7778,
+   "acierto_%": 100.0,
+   "coste_medio_$": 0.054,
+   "coste_total_$": 0.054,
+   "fallos_silenciosos": 0,
+   "ahorro_vs_generar_%": 83.7775
+  }
+ ],
+ "por_categoria": {
+  "generar_siempre": {
+   "ok": {
+    "cosmetica": 0.85,
+    "identica": 0.94,
+    "sustantiva": 1.0
+   },
+   "coste": {
+    "cosmetica": 0.1996,
+    "identica": 0.2006,
+    "sustantiva": 0.1958
+   },
+   "total": {
+    "cosmetica": 0.4996,
+    "identica": 0.3206,
+    "sustantiva": 0.1958
+   }
+  },
+  "reutilizar_siempre": {
+   "ok": {
+    "cosmetica": 1.0,
+    "identica": 1.0,
+    "sustantiva": 0.0
+   },
+   "coste": {
+    "cosmetica": 0.0041,
+    "identica": 0.0041,
+    "sustantiva": 0.0041
+   },
+   "total": {
+    "cosmetica": 0.0041,
+    "identica": 0.0041,
+    "sustantiva": 2.0041
+   }
+  },
+  "router_hash": {
+   "ok": {
+    "cosmetica": 0.85,
+    "identica": 1.0,
+    "sustantiva": 1.0
+   },
+   "coste": {
+    "cosmetica": 0.2037,
+    "identica": 0.0041,
+    "sustantiva": 0.1999
+   },
+   "total": {
+    "cosmetica": 0.5037,
+    "identica": 0.0041,
+    "sustantiva": 0.1999
+   }
+  },
+  "router_firma": {
+   "ok": {
+    "cosmetica": 0.9,
+    "identica": 1.0,
+    "sustantiva": 0.7
+   },
+   "coste": {
+    "cosmetica": 0.067,
+    "identica": 0.0041,
+    "sustantiva": 0.1477
+   },
+   "total": {
+    "cosmetica": 0.267,
+    "identica": 0.0041,
+    "sustantiva": 0.7477
+   }
+  },
+  "router_semantico": {
+   "ok": {
+    "cosmetica": 1.0,
+    "identica": 1.0,
+    "sustantiva": 1.0
+   },
+   "coste": {
+    "cosmetica": 0.0222,
+    "identica": 0.0041,
+    "sustantiva": 0.2103
+   },
+   "total": {
+    "cosmetica": 0.0222,
+    "identica": 0.0041,
+    "sustantiva": 0.2103
+   }
+  }
+ },
+ "mejor_router": "router_semantico",
+ "mejor_determinista": "router_hash",
+ "K1_supera": true,
+ "K2_supera": true,
+ "precision_routers": {
+  "router_hash": {
+   "acierto_%": 77.77777777777779,
+   "reutiliza_sustantivas": 0,
+   "regenera_equivalentes": 20
+  },
+  "router_firma": {
+   "acierto_%": 87.77777777777777,
+   "reutiliza_sustantivas": 6,
+   "regenera_equivalentes": 5
+  },
+  "router_semantico": {
+   "acierto_%": 100.0,
+   "reutiliza_sustantivas": 0,
+   "regenera_equivalentes": 0
+  }
+ },
+ "sensibilidad_mezcla_coste_total": {
+  "90/5/5": {
+   "generar_siempre": 0.323304735,
+   "reutilizar_siempre": 0.1041227777777778,
+   "router_hash": 0.03889075277777777,
+   "router_firma": 0.05444338027777778,
+   "router_semantico": 0.015336497777777779
+  },
+  "56/22/22 (esta)": {
+   "generar_siempre": 0.3326334444444445,
+   "reutilizar_siempre": 0.4485672222222222,
+   "router_hash": 0.15864711111111113,
+   "router_firma": 0.22776989999999994,
+   "router_semantico": 0.05396153333333334
+  },
+  "20/40/40": {
+   "generar_siempre": 0.34226308,
+   "reutilizar_siempre": 0.804122777777778,
+   "router_hash": 0.28226657777777775,
+   "router_firma": 0.4066875977777778,
+   "router_semantico": 0.09383253777777778
+  },
+  "0/50/50": {
+   "generar_siempre": 0.34767975,
+   "reutilizar_siempre": 1.004122777777778,
+   "router_hash": 0.35180252777777776,
+   "router_firma": 0.5073288027777778,
+   "router_semantico": 0.11625997777777777
+  }
+ },
+ "bloques": {
+  "datos": {
+   "validacion": "5/5",
+   "coste_compilacion": 0.11363400000000001
+  },
+  "negocio": {
+   "validacion": "5/5",
+   "coste_compilacion": 0.257416
+  }
+ },
+ "gasto_generacion_nueva_$": 7.90719,
+ "gasto_juez_$": 0.570354
+}

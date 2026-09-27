@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.98,
+  "diferencia": "Solo diferencias de redacción, sinónimos y formato. Ambas políticas tienen idénticas: orden de procesamiento (fecha, id), reglas de homologación, umbrales de presupuesto, ventanas de 7 días, tramos de aprobación (≤500€, ≤5000€, >5000€), criterios para revision_it, y efectos sobre cancelaciones. Las variaciones son puramente lingüísticas ('anulan' vs 'anula', 'aparecen' vs 'se incluyen', 'es' vs 'vale', '7 días anteriores' vs '7 días previos', etc.)."
+}
+```

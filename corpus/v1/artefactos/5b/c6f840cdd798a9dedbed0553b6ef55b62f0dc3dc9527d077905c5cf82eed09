@@ -1,0 +1,26 @@
+TAREA:
+En el CSV adjunto encuentra el estado final {"par": [col_a, col_b], "anomalias": [ids]} (listas ordenadas) aplicando EXACTAMENTE estas reglas:
+0. Si un 'id' aparece repetido, quédate solo con su PRIMERA aparición. Las celdas vacías son valores ausentes. Algunos valores numéricos usan coma decimal (p. ej. "12,5"): son números.
+1. Relación principal: entre las columnas numéricas con como mucho un 35 % de valores ausentes, el par con mayor correlación de Pearson en valor absoluto, calculada con las filas donde ambas columnas tienen valor.
+2. Filas anómalas: una fila es anómala si alguno de sus valores no ausentes, en CUALQUIER columna numérica, se aleja más de 4.5 desviaciones robustas (MAD × 1.4826) de la mediana de esa columna calculada DENTRO DE SU 'region' (ignorando ausentes). Si en una region la MAD de una columna es 0, esa columna no marca anomalías en esa region.
+
+ENTRADAS:
+Archivo `datos.csv`: 1504 filas, columnas ['id', 'region', 'resenas', 'descuento', 'tiempo_entrega', 'incidencias', 'horas_extra', 'conversiones', 'stock', 'ventas', 'clics', 'visitas', 'tickets_soporte', 'precio_medio', 'averias'].
+Primeras 5 filas:
+id,region,resenas,descuento,tiempo_entrega,incidencias,horas_extra,conversiones,stock,ventas,clics,visitas,tickets_soporte,precio_medio,averias
+r00000,este,26.999,42.422,-22.144,798.65,465.551,691.828,169.801,291.537,902.999,286.518,913.088,634.853,0.0
+r00001,norte,43.465,,31.696,774.044,507.208,,161.617,348.069,745.533,302.669,811.771,1099.348,0.0
+r00002,este,32.116,43.852,21.651,699.166,447.374,738.256,194.808,,919.087,270.954,834.474,948.162,0.0
+r00003,sur,21.008,34.91,19.771,820.294,514.901,702.285,159.512,337.346,545.828,284.752,1199.499,1036.536,0.0
+r00004,oeste,78.955,47.875,17.716,891.242,402.286,538.712,"134,419",373.622,778.464,314.897,816.947,976.745,0.0
+
+
+Formato obligatorio del plan (JSON):
+{
+  "objetivo": "qué estado final hay que producir",
+  "criterios": ["cada regla o criterio que el programa debe aplicar, con sus casos límite"],
+  "pasos": [{"n": 1, "accion": "…", "detalle": "…"}],
+  "verificacion": ["comprobaciones que el programa debe hacer antes de imprimir el resultado"],
+  "riesgos": ["errores probables a evitar"]
+}
+Mínimo 3 pasos, al menos 1 criterio y 1 verificación.

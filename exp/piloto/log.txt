@@ -1,0 +1,14 @@
+12 unidades pendientes de 12
+[1/12] ('datos-media-008', 0) gasto acumulado $0.91
+[2/12] ('datos-facil-004', 0) gasto acumulado $1.06
+[3/12] ('datos-dificil-009', 0) gasto acumulado $1.10
+[4/12] ('datos-facil-000', 0) gasto acumulado $1.17
+[5/12] ('datos-dificil-006', 0) gasto acumulado $1.22
+[6/12] ('datos-media-007', 0) gasto acumulado $1.53
+[7/12] ('negocio-facil-007', 0) gasto acumulado $3.04
+[8/12] ('negocio-facil-005', 0) gasto acumulado $3.20
+[9/12] ('negocio-dificil-006', 0) gasto acumulado $3.39
+[10/12] ('negocio-dificil-004', 0) gasto acumulado $3.48
+[11/12] ('negocio-media-003', 0) gasto acumulado $3.55
+[12/12] ('negocio-media-009', 0) gasto acumulado $3.66
+exp/piloto/ejecuciones.jsonl

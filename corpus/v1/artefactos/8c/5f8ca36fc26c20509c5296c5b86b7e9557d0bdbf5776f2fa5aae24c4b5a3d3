@@ -1,0 +1,189 @@
+```python
+import json
+import re
+from datetime import datetime
+
+# Read input
+with open('entradas.json', 'r') as f:
+    data = json.load(f)
+
+proveedores_homologados = set(data['proveedores_homologados'])
+tipos_cambio = data['tipos_cambio']
+presupuesto = {k: float(v) for k, v in data['presupuesto_inicial'].items()}
+entradas = data['entradas']
+
+# Sort entries by (fecha, id)
+entradas_sorted = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Parse amount function
+def parse_importe(texto, tipos_cambio):
+    # Detect currency
+    if 'EUR' in texto or '€' in texto:
+        moneda = 'EUR'
+    elif 'USD' in texto:
+        moneda = 'USD'
+    elif 'GBP' in texto:
+        moneda = 'GBP'
+    else:
+        raise ValueError(f"Moneda no reconocida: {texto}")
+    
+    # Detect IVA format
+    if '+ IVA' in texto:
+        tiene_iva = True
+    elif '(IVA incluido)' in texto:
+        tiene_iva = False
+    else:
+        raise ValueError(f"Formato de IVA no reconocido: {texto}")
+    
+    # Extract number
+    match = re.search(r'[0-9.,]+', texto)
+    if not match:
+        raise ValueError(f"No se encontró número: {texto}")
+    
+    numero_str = match.group()
+    
+    # Parse number based on currency
+    if moneda == 'EUR':
+        # EUR can be Spanish format (1.234,56) or plain (1234.56)
+        if ',' in numero_str:
+            # Spanish format: remove thousands separator (.) and replace decimal comma
+            numero_str = numero_str.replace('.', '').replace(',', '.')
+    else:
+        # USD and GBP are English format (1,234.56): remove thousands separator
+        numero_str = numero_str.replace(',', '')
+    
+    importe = float(numero_str)
+    
+    # Convert to EUR
+    eur = round(importe * tipos_cambio[moneda], 2)
+    
+    # Apply IVA
+    if tiene_iva:
+        importe_final = round(eur * 1.21, 2)
+    else:
+        importe_final = eur
+    
+    return importe_final
+
+# Process entries
+registro = {}
+decisiones = {}
+
+for entrada in entradas_sorted:
+    id_entrada = entrada['id']
+    tipo = entrada['tipo']
+    fecha = entrada['fecha']
+    fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+    
+    if tipo == 'solicitud':
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe_texto = entrada['importe']
+        
+        # Parse amount
+        importe_final = parse_importe(importe_texto, tipos_cambio)
+        
+        # Initialize decision
+        estado = None
+        aprobador = None
+        motivo = None
+        revision_it = False
+        
+        # Rule 1: Check provider
+        if proveedor not in proveedores_homologados:
+            if categoria == 'hardware' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        # Rule 2: Check budget
+        elif importe_final > presupuesto[departamento]:
+            estado = 'escalada'
+            aprobador = 'finanzas'
+            motivo = 'sin_presupuesto'
+        # Rule 3: Approve
+        else:
+            estado = 'aprobada'
+            motivo = None
+            presupuesto[departamento] = round(presupuesto[departamento] - importe_final, 2)
+            
+            # Calculate accumulated amount for approver determination
+            acumulado = importe_final
+            
+            for id_prev, record_prev in registro.items():
+                if (record_prev['estado'] == 'aprobada' and
+                    record_prev['proveedor'] == proveedor and
+                    record_prev['departamento'] == departamento):
+                    fecha_prev = record_prev['fecha']
+                    days_diff = (fecha_obj - fecha_prev).days
+                    if 0 <= days_diff <= 7:
+                        acumulado = round(acumulado + record_prev['importe_final'], 2)
+            
+            # Determine approver based on acumulado
+            if acumulado <= 500:
+                aprobador = 'auto'
+            elif acumulado <= 5000:
+                aprobador = 'jefe_departamento'
+            else:
+                aprobador = 'direccion'
+        
+        # Rule 4: revision_it
+        if categoria == 'software' and estado in ('aprobada', 'escalada'):
+            revision_it = True
+        
+        # Register solicitud
+        registro[id_entrada] = {
+            'fecha': fecha_obj,
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'importe_final': importe_final,
+            'estado': estado
+        }
+        
+        decisiones[id_entrada] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+    
+    elif tipo == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        if referencia in registro:
+            record = registro[referencia]
+            
+            # Return budget if was approved
+            if record['estado'] == 'aprobada':
+                presupuesto[record['departamento']] = round(
+                    presupuesto[record['departamento']] + record['importe_final'], 2
+                )
+            
+            # Update the referenced solicitud
+            registro[referencia]['estado'] = 'cancelada'
+            
+            # Update decisiones
+            decisiones[referencia] = {
+                'estado': 'cancelada',
+                'aprobador': None,
+                'motivo': 'cancelada_por_solicitante',
+                'revision_it': False
+            }
+
+# Round presupuesto_final
+presupuesto_final = {k: round(v, 2) for k, v in presupuesto.items()}
+
+# Build output
+salida = {
+    'decisiones': decisiones,
+    'presupuesto_final': presupuesto_final
+}
+
+# Print JSON
+print(json.dumps(salida, ensure_ascii=False, indent=2))
+```

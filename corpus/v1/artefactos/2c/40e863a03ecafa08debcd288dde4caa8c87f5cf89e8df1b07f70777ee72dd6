@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": true,
+  "p": 0.99,
+  "diferencia": "Ninguna. Ambas políticas establecen exactamente los mismos criterios: (1) mantener solo la primera fila de cada id duplicado, (2) tratar vacíos como ausentes y comas decimales como números, (3) encontrar el par de columnas numéricas (con ≤20% de ausentes) con máximo |Pearson| pairwise, y (4) detectar anomalías con el mismo umbral de 4.5×(MAD×1.4826) respecto a la mediana regional. Las diferencias son únicamente de redacción y formato, sin cambios en umbrales, criterios, ventanas ni reglas de cálculo."
+}
+```

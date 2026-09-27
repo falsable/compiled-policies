@@ -1,0 +1,78 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+import itertools
+
+# Cargar CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Aplicar strip a todas las celdas
+df = df.apply(lambda col: col.str.strip())
+
+# Reemplazar '' por NaN
+df = df.replace('', np.nan)
+
+# Deduplicar por id, conservando la primera aparición
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Identificar columnas numéricas
+numeric_cols = [c for c in df.columns if c not in ['id', 'region']]
+
+# Convertir a numérico (reemplazar coma por punto)
+for col in numeric_cols:
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Seleccionar columnas elegibles (frac_na <= 0.20)
+eligible_cols = [col for col in numeric_cols if df[col].isna().mean() <= 0.20]
+
+# Encontrar el par de columnas elegibles con mayor |Pearson|
+max_corr = -2
+best_pair = None
+
+for col_a, col_b in itertools.combinations(sorted(eligible_cols), 2):
+    # Calcular correlación solo para filas donde ambas columnas tienen valor
+    mask = df[col_a].notna() & df[col_b].notna()
+    if mask.sum() < 2:
+        continue
+    
+    r = df.loc[mask, [col_a, col_b]].corr().iloc[0, 1]
+    
+    if not np.isnan(r) and abs(r) > abs(max_corr):
+        max_corr = r
+        best_pair = (col_a, col_b)
+
+# Detectar filas anómalas por región usando MAD
+anomalous_ids = set()
+
+for region, grupo in df.groupby('region', dropna=False):
+    for col in numeric_cols:
+        x = grupo[col].dropna()
+        
+        if len(x) == 0:
+            continue
+        
+        med = x.median()
+        mad = (x - med).abs().median()
+        
+        # Si MAD == 0, esa columna no marca anomalías en esa región
+        if mad == 0:
+            continue
+        
+        escala = 1.4826 * mad
+        threshold = 4.5 * escala
+        
+        # Marcar filas donde |x - med| > 4.5 * escala
+        anomalous_mask = (grupo[col].notna()) & ((grupo[col] - med).abs() > threshold)
+        anomalous_ids.update(grupo.loc[anomalous_mask, 'id'].values)
+
+# Construir resultado
+anomalies = sorted(list(anomalous_ids))
+result = {
+    "par": sorted(list(best_pair)),
+    "anomalias": anomalies
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

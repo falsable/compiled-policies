@@ -1,0 +1,182 @@
+import json
+import re
+from datetime import datetime
+
+# Load data
+with open('entradas.json', 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+tipos_cambio = data['tipos_cambio']
+presupuesto = dict(data['presupuesto_inicial'])
+entradas = data['entradas']
+proveedores_homologados = set(data['proveedores_homologados'])
+
+def parse_importe(texto):
+    """Parse importe text and return total with IVA in EUR"""
+    # Detect currency
+    if 'USD' in texto:
+        moneda = 'USD'
+    elif 'GBP' in texto:
+        moneda = 'GBP'
+    else:
+        moneda = 'EUR'
+    
+    # Extract number using regex
+    match = re.search(r'[0-9][0-9.,]*', texto)
+    if not match:
+        raise ValueError(f"Cannot parse number from {texto}")
+    
+    num_str = match.group()
+    
+    # Normalize based on currency
+    if moneda == 'EUR':
+        # Spanish format: 1.234,56 or plain: 2738.48
+        if ',' in num_str:
+            # Spanish: remove dots, replace comma with dot
+            num_str = num_str.replace('.', '').replace(',', '.')
+    else:  # USD or GBP
+        # English format: remove all commas
+        num_str = num_str.replace(',', '')
+    
+    num = float(num_str)
+    
+    # Convert to EUR
+    eur = round(num * tipos_cambio[moneda], 2)
+    
+    # Handle IVA
+    if '+ IVA' in texto:
+        total = round(eur * 1.21, 2)
+    elif 'IVA incluido' in texto:
+        total = eur
+    else:
+        raise ValueError(f"No IVA indicator in {texto}")
+    
+    return total
+
+# Sort entries by (fecha, id)
+sorted_entradas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))
+
+# Process
+decisiones = {}
+info = {}
+
+for entrada in sorted_entradas:
+    entrada_id = entrada['id']
+    entrada_tipo = entrada['tipo']
+    
+    if entrada_tipo == 'solicitud':
+        fecha = entrada['fecha']
+        departamento = entrada['departamento']
+        proveedor = entrada['proveedor']
+        categoria = entrada['categoria']
+        urgente = entrada['urgente']
+        importe_texto = entrada['importe']
+        
+        # Parse amount
+        total = parse_importe(importe_texto)
+        
+        # Apply rules
+        estado = None
+        aprobador = None
+        motivo = None
+        
+        # Rule 1: Check if provider is homologated
+        if proveedor not in proveedores_homologados:
+            if categoria == 'seguridad' and urgente:
+                estado = 'escalada'
+                aprobador = 'direccion'
+                motivo = 'excepcion_seguridad'
+            else:
+                estado = 'rechazada'
+                aprobador = None
+                motivo = 'proveedor_no_homologado'
+        else:
+            # Rule 2: Check budget
+            if total > presupuesto[departamento]:
+                estado = 'escalada'
+                aprobador = 'finanzas'
+                motivo = 'sin_presupuesto'
+            else:
+                # Rule 3: Approve with appropriate approver
+                estado = 'aprobada'
+                motivo = None
+                
+                # Calculate accumulated amount
+                acumulado = total
+                fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+                
+                for prev_id in decisiones:
+                    # Only consider approved requests
+                    if decisiones[prev_id]['estado'] != 'aprobada':
+                        continue
+                    if info[prev_id]['proveedor'] != proveedor:
+                        continue
+                    if info[prev_id]['departamento'] != departamento:
+                        continue
+                    
+                    prev_fecha_str = info[prev_id]['fecha']
+                    prev_fecha = datetime.strptime(prev_fecha_str, '%Y-%m-%d').date()
+                    dias_diff = (fecha_obj - prev_fecha).days
+                    if 0 <= dias_diff <= 7:
+                        acumulado += info[prev_id]['total']
+                
+                # Determine approver based on accumulated amount
+                if acumulado <= 500:
+                    aprobador = 'auto'
+                elif acumulado <= 5000:
+                    aprobador = 'jefe_departamento'
+                else:
+                    aprobador = 'direccion'
+                
+                # Deduct from budget
+                presupuesto[departamento] = round(presupuesto[departamento] - total, 2)
+        
+        # Rule 4: Check revision_it
+        revision_it = (categoria == 'software' and estado in ['aprobada', 'escalada'])
+        
+        # Store info
+        info[entrada_id] = {
+            'departamento': departamento,
+            'proveedor': proveedor,
+            'fecha': fecha,
+            'total': total
+        }
+        
+        # Store decision
+        decisiones[entrada_id] = {
+            'estado': estado,
+            'aprobador': aprobador,
+            'motivo': motivo,
+            'revision_it': revision_it
+        }
+    
+    elif entrada_tipo == 'cancelacion':
+        referencia = entrada['referencia']
+        
+        # Only process if the referenced request exists
+        if referencia in decisiones:
+            ref_decision = decisiones[referencia]
+            # Only process if not already cancelled
+            if ref_decision['estado'] != 'cancelada':
+                # Refund if it was approved
+                if ref_decision['estado'] == 'aprobada':
+                    ref_total = info[referencia]['total']
+                    ref_departamento = info[referencia]['departamento']
+                    presupuesto[ref_departamento] = round(presupuesto[ref_departamento] + ref_total, 2)
+                
+                # Update the cancellation
+                decisiones[referencia] = {
+                    'estado': 'cancelada',
+                    'aprobador': None,
+                    'motivo': 'cancelada_por_solicitante',
+                    'revision_it': False
+                }
+
+# Build output
+presupuesto_final = {dep: round(v, 2) for dep, v in presupuesto.items()}
+resultado = {
+    'decisiones': decisiones,
+    'presupuesto_final': presupuesto_final
+}
+
+print(json.dumps(resultado, ensure_ascii=False, indent=2))

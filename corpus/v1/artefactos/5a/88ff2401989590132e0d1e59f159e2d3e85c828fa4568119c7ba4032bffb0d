@@ -1,0 +1,88 @@
+import pandas as pd
+import numpy as np
+import json
+
+# Cargar datos
+df = pd.read_csv('datos.csv', sep=';', dtype=str, keep_default_na=False)
+
+# Strip de cadenas
+for col in df.columns:
+    df[col] = df[col].str.strip()
+
+# Deduplicar por ID (primera aparición)
+df = df.drop_duplicates(subset='id', keep='first')
+
+# Convertir a numérico
+def to_numeric(x):
+    if x == '':
+        return np.nan
+    try:
+        return float(x.replace(',', '.'))
+    except:
+        return np.nan
+
+numeric_cols = [c for c in df.columns if c not in ['id', 'region']]
+
+for col in numeric_cols:
+    df[col] = df[col].apply(to_numeric)
+
+# Seleccionar columnas elegibles (≤20% ausentes)
+elegibles = [c for c in numeric_cols if df[c].isna().mean() <= 0.20]
+
+# Calcular correlaciones pairwise
+max_corr = -1
+best_pair = None
+
+for i, col_a in enumerate(elegibles):
+    for col_b in elegibles[i+1:]:
+        # Máscara de filas donde ambas tienen valor
+        mask = df[[col_a, col_b]].notna().all(axis=1)
+        n = mask.sum()
+        
+        if n >= 3:
+            x = df.loc[mask, col_a].values
+            y = df.loc[mask, col_b].values
+            
+            # Verificar varianza
+            if np.std(x) > 0 and np.std(y) > 0:
+                r = np.corrcoef(x, y)[0, 1]
+                abs_r = abs(r)
+                
+                if abs_r > max_corr:
+                    max_corr = abs_r
+                    best_pair = tuple(sorted([col_a, col_b]))
+
+# Detectar anomalías por región
+anomaly_flags = pd.Series([False] * len(df), index=df.index)
+
+for col in numeric_cols:
+    for region, group in df.groupby('region', dropna=False):
+        values = group[col].dropna()
+        
+        if len(values) == 0:
+            continue
+        
+        median = values.median()
+        mad = np.median(np.abs(values - median))
+        
+        if mad == 0:
+            continue
+        
+        scale = mad * 1.4826
+        
+        for idx in group.index:
+            val = df.loc[idx, col]
+            if pd.notna(val):
+                z = abs(val - median) / scale
+                if z > 4.5:
+                    anomaly_flags[idx] = True
+
+# Construir resultado
+anomalies = sorted(df.loc[anomaly_flags, 'id'].unique().tolist())
+
+result = {
+    'par': list(best_pair),
+    'anomalias': anomalies
+}
+
+print(json.dumps(result, ensure_ascii=False))

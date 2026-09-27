@@ -1,0 +1,87 @@
+```python
+import pandas as pd
+import numpy as np
+import json
+
+# Cargar el CSV
+df = pd.read_csv('datos.csv', dtype=str, keep_default_na=False)
+
+# Aplicar strip y convertir cadenas vacías a NaN
+for col in df.columns:
+    df[col] = df[col].str.strip()
+    df[col] = df[col].replace('', np.nan)
+
+# Deduplicar (primero, antes de cualquier cálculo)
+df = df.drop_duplicates(subset='id', keep='first').reset_index(drop=True)
+
+# Convertir columnas numéricas
+numeric_cols = [col for col in df.columns if col not in ['id', 'region']]
+
+for col in numeric_cols:
+    df[col] = df[col].str.replace(',', '.', regex=False)
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Seleccionar columnas elegibles (<=20% ausentes)
+elegibles = []
+for col in numeric_cols:
+    frac_na = df[col].isna().mean()
+    if frac_na <= 0.20:
+        elegibles.append(col)
+
+# Calcular correlaciones
+best_r = -1
+best_pair = None
+
+if len(elegibles) >= 2:
+    corr_matrix = df[elegibles].corr(method='pearson')
+    
+    sorted_cols = sorted(elegibles)
+    for i in range(len(sorted_cols)):
+        for j in range(i+1, len(sorted_cols)):
+            col_a = sorted_cols[i]
+            col_b = sorted_cols[j]
+            r = corr_matrix.loc[col_a, col_b]
+            
+            if pd.notna(r):
+                abs_r = abs(r)
+                if abs_r > best_r:
+                    best_r = abs_r
+                    best_pair = [col_a, col_b]
+
+# Detectar anomalías por región
+anomaly_indices = set()
+
+for region, group in df.groupby('region', dropna=False):
+    group_indices = group.index.tolist()
+    
+    for col in numeric_cols:
+        values = df.loc[group_indices, col].dropna()
+        
+        if len(values) == 0:
+            continue
+        
+        med = values.median()
+        mad = (values - med).abs().median()
+        
+        if mad == 0:
+            continue
+        
+        s = mad * 1.4826
+        
+        for idx in group_indices:
+            val = df.loc[idx, col]
+            if pd.notna(val):
+                if abs(val - med) > 4.5 * s:
+                    anomaly_indices.add(idx)
+
+# Obtener los ids de las filas anómalas
+anomalies = sorted(df.loc[list(anomaly_indices), 'id'].unique().tolist()) if anomaly_indices else []
+
+# Construir resultado
+result = {
+    "par": best_pair,
+    "anomalias": anomalies
+}
+
+print(json.dumps(result, ensure_ascii=False))
+```

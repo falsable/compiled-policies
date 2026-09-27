@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "bloques_dinamicos",
+  "project_id": "1118f805-8fc2-405a-ac52-32ee0d842b34"
+}

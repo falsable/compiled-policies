@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.0,
+  "diferencia": "La regla 2 (detección de anomalías) cambia el umbral de desviaciones robustas de 4.5 (POLÍTICA A) a 3.5 (POLÍTICA B). Un programa escrito para POLÍTICA A usaría 4.5 y produciría resultados diferentes: identificaría MENOS anomalías que las que detectaría POLÍTICA B con umbral 3.5."
+}
+```

@@ -1,0 +1,8 @@
+6 unidades pendientes de 12
+[1/6] ('negocio-facil-007', 0) gasto acumulado $1.22
+[2/6] ('negocio-media-009', 0) gasto acumulado $1.54
+[3/6] ('negocio-facil-005', 0) gasto acumulado $1.72
+[4/6] ('negocio-media-003', 0) gasto acumulado $1.78
+[5/6] ('negocio-dificil-004', 0) gasto acumulado $1.87
+[6/6] ('negocio-dificil-006', 0) gasto acumulado $1.95
+exp/piloto_v2/ejecuciones.jsonl

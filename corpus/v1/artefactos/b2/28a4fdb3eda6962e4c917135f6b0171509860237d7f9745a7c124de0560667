@@ -1,0 +1,49 @@
+```json
+{
+  "objetivo": "Leer entradas.json, aplicar la política de compras a todas las entradas en orden (fecha, id) e imprimir un único JSON {\"decisiones\": {id_solicitud: {\"estado\", \"aprobador\", \"motivo\", \"revision_it\"}}, \"presupuesto_final\": {departamento: euros}}. 'decisiones' contiene solo las solicitudes. Las cancelaciones no aparecen, pero sí modifican las solicitudes que anulan.",
+  "criterios": [
+    "ORDEN: se ordenan todas las entradas (solicitudes y cancelaciones juntas) por la clave (fecha, id). fecha es una cadena ISO YYYY-MM-DD e id se compara alfabéticamente. Así, el 2026-09-19 'CX-300-1' va antes que 'SC-300-12'. El lote de entrada NO viene ordenado.",
+    "DIVISA: si el texto del importe contiene '€' o 'EUR' la divisa es EUR. Si contiene 'USD' es USD. Si contiene 'GBP' es GBP.",
+    "PARSEO EUR: se extrae el token numérico. Si contiene ',' es formato español: se quitan los '.' y la ',' se cambia por '.'. Ejemplo: '1.565,05' → 1565.05 y '809,23' → 809.23. Si no contiene ',' es formato plano: '2270.63' → 2270.63 y '333.38' → 333.38.",
+    "PARSEO USD/GBP: formato anglosajón. Se quitan las ',' y el '.' es el decimal. Ejemplo: '1,382.90' → 1382.90.",
+    "CONVERSIÓN: eur = round2(importe × tipos_cambio[divisa]). Si el texto contiene '+ IVA', total = round2(eur × 1.21). Si contiene '(IVA incluido)', total = eur. Todas las reglas usan este total con IVA en EUR.",
+    "REDONDEO: round2 se implementa con Decimal y ROUND_HALF_UP, construyendo los Decimal a partir de cadenas, para evitar errores de coma flotante. Los presupuestos también se llevan en Decimal.",
+    "REGLA 1: si el proveedor no está en proveedores_homologados (comparación exacta de cadena), el resultado es estado 'rechazada', aprobador null, motivo 'proveedor_no_homologado'. Excepción: si categoria=='seguridad' y urgente==true, el resultado es estado 'escalada', aprobador 'direccion', motivo 'excepcion_seguridad'. En ambos casos no se toca el presupuesto y no se evalúan las reglas 2 y 3.",
+    "La excepción de seguridad SOLO aplica a proveedores no homologados. Una solicitud de seguridad urgente con proveedor homologado sigue por las reglas 2 y 3 con normalidad.",
+    "REGLA 2: si el total de ESTA solicitud es mayor (>, estricto) que el presupuesto restante del departamento, el resultado es estado 'escalada', aprobador 'finanzas', motivo 'sin_presupuesto'. No se descuenta nada del presupuesto.",
+    "REGLA 3: en otro caso (total ≤ restante), el resultado es estado 'aprobada', motivo null, y se resta el total del presupuesto del departamento.",
+    "APROBADOR DE LA REGLA 3: acumulado = total actual + suma de los totales de las solicitudes ya procesadas que cumplan todas estas condiciones: estado actual 'aprobada' (las canceladas NO cuentan), mismo proveedor, mismo departamento, y 0 ≤ (fecha_actual − fecha_previa).days ≤ 7. Con acumulado ≤ 500 el aprobador es 'auto'; con acumulado ≤ 5000 es 'jefe_departamento'; con acumulado > 5000 es 'direccion'.",
+    "REVISIÓN IT: revision_it = (categoria=='software' and estado in ('aprobada','escalada')). En cualquier otro caso es false.",
+    "CANCELACIÓN: localizar la solicitud con id == referencia. Si su estado era 'aprobada', se devuelve su total al presupuesto de su departamento. A continuación se fija estado 'cancelada', aprobador null, motivo 'cancelada_por_solicitante', revision_it false. Una solicitud escalada o rechazada que se cancela no devuelve nada.",
+    "SALIDA: los presupuestos se expresan como float con 2 decimales. En decisiones, los valores null se serializan como null JSON y revision_it es booleano."
+  ],
+  "pasos": [
+    {"n": 1, "accion": "Cargar datos", "detalle": "Leer entradas.json con json.load. Guardar homologados en un set, tipos_cambio como Decimal(str(v)) y presupuesto como un dict con Decimal(str(v))."},
+    {"n": 2, "accion": "Ordenar", "detalle": "entradas_ordenadas = sorted(entradas, key=lambda e: (e['fecha'], e['id']))."},
+    {"n": 3, "accion": "Función de importe", "detalle": "Implementar parse_total(texto) según los criterios de divisa, parseo, conversión y redondeo, usando la expresión regular r'[\\d.,]+' para extraer el número. Devuelve un Decimal con 2 decimales."},
+    {"n": 4, "accion": "Procesar solicitudes", "detalle": "Para cada entrada de tipo 'solicitud': calcular el total y aplicar las reglas 1, 2 y 3 en ese orden, deteniéndose en la primera que aplique. Después calcular revision_it. Guardar en un registro interno: id, fecha (date), departamento, proveedor, categoria, total, estado, aprobador y motivo. El acumulado se calcula recorriendo los registros ya procesados."},
+    {"n": 5, "accion": "Procesar cancelaciones", "detalle": "Para cada entrada de tipo 'cancelacion', en su posición del orden: buscar el registro de la referencia. Si su estado es 'aprobada', sumar su total al presupuesto de su departamento. Después marcarla como cancelada con los campos indicados en los criterios."},
+    {"n": 6, "accion": "Construir la salida", "detalle": "decisiones = {id: {estado, aprobador, motivo, revision_it}} para todas las solicitudes. presupuesto_final = {dep: float(valor.quantize(Decimal('0.01')))}. Imprimir con json.dumps(ensure_ascii=False, indent=2)."}
+  ],
+  "verificacion": [
+    "decisiones tiene exactamente 17 claves (SC-300-00 a SC-300-15) y ninguna clave empieza por 'CX-'.",
+    "Totales esperados con IVA: SC-300-01=307.40, SC-300-13=403.39, SC-300-00=921.94, SC-300-08=1893.71, SC-300-10=85.09, SC-300-04=730.25, SC-300-06=979.17, SC-300-05=2575.57, SC-300-12=1539.45 y SC-300-03=2664.37.",
+    "Resultados esperados de SC-300-00 a SC-300-05: SC-300-00 aprobada/jefe_departamento, SC-300-01 aprobada/auto, SC-300-02 escalada/finanzas/sin_presupuesto, SC-300-03 aprobada/jefe_departamento, SC-300-04 aprobada/jefe_departamento, SC-300-05 cancelada.",
+    "Resultados esperados de SC-300-06 a SC-300-10: SC-300-06 aprobada/jefe_departamento con revision_it true (acumulado 2872.88 con SC-300-08), SC-300-07 aprobada/jefe_departamento (SC-300-13 queda fuera de la ventana por estar a 9 días), SC-300-08 aprobada/jefe_departamento, SC-300-09 escalada/direccion/excepcion_seguridad, SC-300-10 cancelada.",
+    "Resultados esperados de SC-300-11 a SC-300-15: SC-300-11 rechazada/null/proveedor_no_homologado, SC-300-12 escalada/finanzas/sin_presupuesto, SC-300-13 aprobada/auto, SC-300-14 aprobada/auto, SC-300-15 aprobada/jefe_departamento con revision_it true (acumulado 603.92 con SC-300-14).",
+    "presupuesto_final esperado: marketing 2774.08, operaciones 6592.60, it 2247.81, rrhh 231.71, legal 1027.12.",
+    "Ningún presupuesto es negativo en ningún momento del proceso. Si el resultado difiere de los valores esperados, revisar el parseo, el orden y la ventana de 7 días antes de imprimir."
+  ],
+  "riesgos": [
+    "No ordenar el lote, u ordenar solo las solicitudes: las cancelaciones deben intercalarse por (fecha, id).",
+    "Parsear '2270.63 €' o '822.53 €' como formato español, lo que daría 227063. En EUR, sin ',' el '.' es el separador decimal.",
+    "Usar round() de float, que redondea al par (redondeo bancario) y arrastra errores binarios. Hay que usar Decimal con ROUND_HALF_UP.",
+    "Aplicar la excepción de seguridad a proveedores homologados. SC-300-12 es homologado y debe acabar escalada a finanzas por falta de presupuesto.",
+    "Usar el acumulado en la regla 2. La regla 2 compara solo el total de la solicitud actual.",
+    "Incluir en el acumulado solicitudes canceladas, escaladas o de otro proveedor o departamento, o usar una ventana de 7 días mal delimitada. La diferencia debe estar entre 0 y 7 días, ambos incluidos.",
+    "Devolver presupuesto al cancelar una solicitud que no estaba aprobada (SC-300-05 estaba escalada).",
+    "Olvidar poner revision_it a false al cancelar, o ponerla a true en solicitudes rechazadas.",
+    "Incluir las cancelaciones en decisiones."
+  ]
+}
+```

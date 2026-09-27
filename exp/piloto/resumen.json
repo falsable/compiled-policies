@@ -1,0 +1,133 @@
+{
+  "global": {
+    "pares_validos": 12,
+    "p_ok_plan_barato": 0.5,
+    "p_ok_plan_caro": 0.75,
+    "p_ok_sin_plan": 0.6666666666666666,
+    "delta": 0.33333333333333337,
+    "delta_ic95": [
+      0.0,
+      0.6666666666666667
+    ],
+    "discordantes_barato_gana": 0,
+    "discordantes_caro_gana": 3,
+    "mcnemar_p": 0.25,
+    "brazos": {
+      "plan_barato": {
+        "n": 12,
+        "gate_ok": 1.0,
+        "p_ok": 0.5,
+        "coste_medio_usd": 0.09542083333333333,
+        "coste_plan_usd": 0.02855083333333333,
+        "coste_ejec_usd": 0.06687,
+        "coste_total_por_tarea_usd": 1.095420833333333
+      },
+      "plan_caro": {
+        "n": 12,
+        "gate_ok": 1.0,
+        "p_ok": 0.75,
+        "coste_medio_usd": 0.15407758333333335,
+        "coste_plan_usd": 0.08294466666666667,
+        "coste_ejec_usd": 0.07113291666666667,
+        "coste_total_por_tarea_usd": 0.6540775833333333
+      },
+      "sin_plan": {
+        "n": 12,
+        "gate_ok": 1.0,
+        "p_ok": 0.6666666666666666,
+        "coste_medio_usd": 0.05590966666666667,
+        "coste_plan_usd": 0.0,
+        "coste_ejec_usd": 0.05590966666666667,
+        "coste_total_por_tarea_usd": 0.7225763333333332
+      }
+    }
+  },
+  "datos": {
+    "pares_validos": 6,
+    "p_ok_plan_barato": 0.8333333333333334,
+    "p_ok_plan_caro": 1.0,
+    "p_ok_sin_plan": 1.0,
+    "delta": 0.16666666666666663,
+    "delta_ic95": [
+      0.0,
+      0.5
+    ],
+    "discordantes_barato_gana": 0,
+    "discordantes_caro_gana": 1,
+    "mcnemar_p": 1.0,
+    "brazos": {
+      "plan_barato": {
+        "n": 6,
+        "gate_ok": 1.0,
+        "p_ok": 0.8333333333333334,
+        "coste_medio_usd": 0.06249566666666667,
+        "coste_plan_usd": 0.017724833333333332,
+        "coste_ejec_usd": 0.044770833333333336,
+        "coste_total_por_tarea_usd": 0.395829
+      },
+      "plan_caro": {
+        "n": 6,
+        "gate_ok": 1.0,
+        "p_ok": 1.0,
+        "coste_medio_usd": 0.11455333333333334,
+        "coste_plan_usd": 0.06025033333333333,
+        "coste_ejec_usd": 0.054303,
+        "coste_total_por_tarea_usd": 0.11455333333333334
+      },
+      "sin_plan": {
+        "n": 6,
+        "gate_ok": 1.0,
+        "p_ok": 1.0,
+        "coste_medio_usd": 0.037004166666666664,
+        "coste_plan_usd": 0.0,
+        "coste_ejec_usd": 0.037004166666666664,
+        "coste_total_por_tarea_usd": 0.037004166666666664
+      }
+    }
+  },
+  "negocio": {
+    "pares_validos": 6,
+    "p_ok_plan_barato": 0.16666666666666666,
+    "p_ok_plan_caro": 0.5,
+    "p_ok_sin_plan": 0.3333333333333333,
+    "delta": 0.6666666666666667,
+    "delta_ic95": [
+      0.0,
+      1.0
+    ],
+    "discordantes_barato_gana": 0,
+    "discordantes_caro_gana": 2,
+    "mcnemar_p": 0.5,
+    "brazos": {
+      "plan_barato": {
+        "n": 6,
+        "gate_ok": 1.0,
+        "p_ok": 0.16666666666666666,
+        "coste_medio_usd": 0.128346,
+        "coste_plan_usd": 0.03937683333333333,
+        "coste_ejec_usd": 0.08896916666666667,
+        "coste_total_por_tarea_usd": 1.7950126666666666
+      },
+      "plan_caro": {
+        "n": 6,
+        "gate_ok": 1.0,
+        "p_ok": 0.5,
+        "coste_medio_usd": 0.19360183333333333,
+        "coste_plan_usd": 0.105639,
+        "coste_ejec_usd": 0.08796283333333334,
+        "coste_total_por_tarea_usd": 1.1936018333333334
+      },
+      "sin_plan": {
+        "n": 6,
+        "gate_ok": 1.0,
+        "p_ok": 0.3333333333333333,
+        "coste_medio_usd": 0.07481516666666667,
+        "coste_plan_usd": 0.0,
+        "coste_ejec_usd": 0.07481516666666667,
+        "coste_total_por_tarea_usd": 1.4081485
+      }
+    }
+  },
+  "ratio_coste_por_llamada_caro_barato": 2.905157467674616,
+  "gasto_total_usd": 3.6648970000000003
+}

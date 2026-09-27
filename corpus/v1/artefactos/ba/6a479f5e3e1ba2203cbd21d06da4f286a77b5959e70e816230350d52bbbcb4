@@ -1,0 +1,7 @@
+```json
+{
+  "equivalentes": false,
+  "p": 0.05,
+  "diferencia": "La Regla 1 cambia el umbral de valores ausentes permitidos en columnas numéricas: Política A usa 20%, Política B usa 35%. Esto modifica qué columnas califican para el análisis de correlación de Pearson, potencialmente alterando cuál es el par con mayor correlación. Por ejemplo, una columna con 25% de ausentes sería excluida en A pero incluida en B."
+}
+```
