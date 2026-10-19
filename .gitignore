@@ -9,3 +9,6 @@ progress.md
 .claude/settings.local.json
 CLAUDE.local.md
 .venv/
+
+__pycache__/
+*.pyc
