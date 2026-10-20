@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "engines": [
+    {
+      "language": "python",
+      "image": "a2dlc-engine-py:0.1",
+      "paths": [
+        "*.py",
+        "benchmark/**/*.py"
+      ],
+      "budget": {
+        "per_condition_timeout_s": 10
+      }
+    }
+  ],
+  "agent_hook": {
+    "max_blocks": 4
+  }
+}

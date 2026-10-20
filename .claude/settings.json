@@ -1,5 +1,17 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook claude",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "Edit|Write|NotebookEdit|Bash"
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
@@ -9,6 +21,17 @@
           }
         ],
         "matcher": ""
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook claude",
+            "timeout": 1800,
+            "type": "command"
+          }
+        ]
       }
     ]
   }

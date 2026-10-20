@@ -1,4 +1,8 @@
 #!/usr/bin/env sh
+# --- BEGIN A2DLC ---
+# Runs differential verification over the working tree and generates .a2dlc/verdict.json.
+"C:/Users/Usuario/go/bin/a2dlc.exe" check || exit 1
+# --- END A2DLC ---
 # --- BEGIN BEADS INTEGRATION v1.3.0 ---
 # This section is managed by beads. Do not remove these markers.
 if command -v bd >/dev/null 2>&1; then

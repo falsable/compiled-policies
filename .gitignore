@@ -12,3 +12,7 @@ CLAUDE.local.md
 
 __pycache__/
 *.pyc
+.a2dlc/verdict.json
+.a2dlc/reports/
+.a2dlc/escalations.json
+.a2dlc/run/

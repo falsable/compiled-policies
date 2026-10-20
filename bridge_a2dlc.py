@@ -1,4 +1,4 @@
-﻿"""Bridge entre los contratos de negocio de compiled-policies y el DSL de invariantes SMT de A2-DLC (§6.2).
+"""Bridge entre los contratos de negocio de compiled-policies y el DSL de invariantes SMT de A2-DLC (§6.2).
 
 Permite:
 1. Extraer y compilar invariantes de un bloque de negocio (ContratoBloque / Bloque) en expresiones
@@ -15,18 +15,23 @@ import re
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from dataclasses import dataclass
+try:
+    from pydantic import BaseModel, Field
+except ImportError:
+    BaseModel = None
 
 # Esquemas de A2-DLC
 A2DLC_ROOT = Path(__file__).resolve().parent.parent / "a2dlc"
 CONTRACTS_DIR = A2DLC_ROOT / "contracts"
 
 
-class InvarianteA2DLC(BaseModel):
+@dataclass
+class InvarianteA2DLC:
     """Invariante formal a nivel de slice conforme a slice-contract.schema.json."""
-    text: str = Field(description="Enunciado humano del invariante")
-    dsl: str | None = Field(None, description="Expresión en el DSL de A2-DLC (§6.2)")
-    verification: str = Field("smt", description="smt | smt+pbt | runtime_and_pbt")
+    text: str
+    dsl: str | None = None
+    verification: str = "smt"
 
 
 # Operadores y patrones del DSL formal de A2-DLC (§6.2)

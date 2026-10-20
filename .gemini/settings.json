@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook gemini",
+            "name": "a2dlc",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook gemini",
+            "name": "a2dlc",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-﻿"""Tests para bridge_a2dlc.py (Contratos de compiled-policies <-> DSL de invariantes A2-DLC)."""
+"""Tests para bridge_a2dlc.py (Contratos de compiled-policies <-> DSL de invariantes A2-DLC)."""
 from __future__ import annotations
 
 import json
