@@ -1,4 +1,57 @@
-# Compiled Policies — success contract, benchmark, and kill test
+<div align="center">
+
+<img src="docs/assets/hero-banner.svg" alt="compiled-policies — Executable Business Contracts, MDP Routing & Z3 SMT Bridge" width="100%" />
+
+<br>
+
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-3b82f6.svg?style=flat-square)](LICENSE)
+[![Bridge: A2-DLC S* + Z3](https://img.shields.io/badge/bridge-A2--DLC%20S*%20%2B%20Z3-10b981.svg?style=flat-square)](bridge_a2dlc.py)
+[![Corpus: 130/130 Replay](https://img.shields.io/badge/golden_corpus-130%2F130-6366f1.svg?style=flat-square)](#)
+[![Agent Skill: SKILL.md](https://img.shields.io/badge/agent_skill-SKILL.md-8b5cf6.svg?style=flat-square)](skills/compiled-policies/SKILL.md)
+
+<p align="center">
+  <a href="#what-is-compiled-policies"><b>What is compiled-policies?</b></a> •
+  <a href="#-use-with-claude-code-gemini-cli-or-codex"><b>🤖 Use with Your AI Agent</b></a> •
+  <a href="#1-success-contract"><b>Success Contract</b></a> •
+  <a href="#2-synthetic-benchmark"><b>Benchmark</b></a> •
+  <a href="#3-kill-test-simulated"><b>MDP Kill Test</b></a>
+</p>
+
+</div>
+
+---
+
+## What is `compiled-policies`?
+
+**`compiled-policies` turns prose business rules into frozen, deterministic verifiers ($\text{TPR}=1, \text{FPR}=0$) and Z3 SMT contracts (`S*`) that coding agents cannot hallucinate or bypass.**
+
+Instead of paying a frontier LLM on every execution of a repetitive business policy (and risking silent drift on edge cases like VAT rounding or threshold boundaries):
+1. **Parametric Policy Compilation:** Compiles business rules into reusable deterministic Python blocks (`reutilizacion_parametros.py`), covering 20/20 policy variants with **0 silent failures** and **−72% total cost**, while rejecting 12/12 out-of-distribution structural rule changes.
+2. **A2-DLC Formal Contract Exporter (`bridge_a2dlc.py`):** Automatically extracts Z3 SMT invariants (§6.2 DSL) and boundary probes from compiled blocks into an [A2-DLC](https://github.com/falsable/a2dlc) `slice-contract` (`contract.json`).
+3. **Frozen Verifier Hierarchy & 120-Task Benchmark:** Enforces `congelado=True` verifiers (deterministic $\rightarrow$ calibrated statistical judge $\rightarrow$ human) backed by 120 seeded tasks and 360 perturbation traps.
+
+---
+
+## 🤖 Use with Claude Code, Gemini CLI, or Codex
+
+Copy and paste this instruction into **Claude Code**, **Gemini CLI / Antigravity**, **OpenAI Codex**, or **Cursor**:
+
+```text
+Configure compiled-policies in this workspace:
+1. Copy the official agent skill from https://raw.githubusercontent.com/AldemarHdez/compiled-policies/main/skills/compiled-policies/SKILL.md into `.agents/skills/compiled-policies/SKILL.md` and `.claude/skills/compiled-policies/SKILL.md`, and read it.
+2. Run `pytest test_bridge_a2dlc.py -q` and `python contracts/validar.py` to verify the A2-DLC S* contract exporter and JSON Schema v1 contracts.
+3. When creating or modifying business policies, export the `S*` contract via `bridge_a2dlc.py` and verify the diff with `a2dlc check`.
+```
+
+### Install the Bundled Agent Skill (`SKILL.md`) Directly
+
+```bash
+mkdir -p .claude/skills/compiled-policies .agents/skills/compiled-policies
+curl -fsSL https://raw.githubusercontent.com/AldemarHdez/compiled-policies/main/skills/compiled-policies/SKILL.md -o .claude/skills/compiled-policies/SKILL.md
+cp .claude/skills/compiled-policies/SKILL.md .agents/skills/compiled-policies/SKILL.md
+```
+
+---
 
 > **Status (Sep 27, 2026):** four hypotheses tested; H4 is proposed but not run (§9). H1 rejected,
 > H2 confirmed, and H3 post-hoc **not replicated** in the gate (§9). Jev as the H2 equivalence judge

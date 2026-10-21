@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090D16"/>
+      <stop offset="50%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="50%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0.9"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E293B" stroke-width="0.7" stroke-opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="380" rx="16" fill="url(#bg)"/>
+  <rect width="1200" height="380" rx="16" fill="url(#grid)"/>
+  <rect x="1.5" y="1.5" width="1197" height="377" rx="14.5" fill="none" stroke="url(#accent)" stroke-opacity="0.35" stroke-width="2"/>
+
+  <g transform="translate(56, 54)">
+    <rect x="0" y="0" width="218" height="28" rx="14" fill="#1E1B4B" stroke="#8B5CF6" stroke-width="1"/>
+    <text x="109" y="18" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="700" fill="#C4B5FD" text-anchor="middle" letter-spacing="1.1">FALSABLE // FORMAL POLICIES</text>
+
+    <text x="0" y="84" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="46" font-weight="800" fill="#F8FAFC" letter-spacing="-1">compiled-policies</text>
+
+    <text x="0" y="122" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="600" fill="#E2E8F0">
+      Executable Business Contracts, MDP Routing &amp; Z3 SMT Bridge
+    </text>
+    <text x="0" y="152" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="14.5" fill="#94A3B8">
+      Compile business policies into frozen deterministic blocks and export
+    </text>
+    <text x="0" y="174" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="14.5" fill="#94A3B8">
+      Z3 SMT invariant contracts (S*) directly into the A2-DLC verification gate.
+    </text>
+
+    <g transform="translate(0, 206)">
+      <rect x="0" y="0" width="136" height="32" rx="6" fill="#111827" stroke="#334155"/>
+      <text x="68" y="20" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" font-weight="600" fill="#A78BFA" text-anchor="middle">Z3 SMT Invariants</text>
+
+      <rect x="146" y="0" width="136" height="32" rx="6" fill="#111827" stroke="#334155"/>
+      <text x="214" y="20" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" font-weight="600" fill="#38BDF8" text-anchor="middle">A2-DLC S* Bridge</text>
+
+      <rect x="292" y="0" width="130" height="32" rx="6" fill="#111827" stroke="#334155"/>
+      <text x="357" y="20" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" font-weight="600" fill="#34D399" text-anchor="middle">130 Golden Replay</text>
+
+      <rect x="432" y="0" width="124" height="32" rx="6" fill="#064E3B" stroke="#10B981"/>
+      <text x="494" y="20" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" font-weight="700" fill="#6EE7B7" text-anchor="middle">SKILL.md Ready</text>
+    </g>
+
+    <text x="0" y="268" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" fill="#64748B">
+      TPR = 1.0, FPR = 0.0  │  R = V·1[success] - cost  │  bridge_a2dlc.py → contract.json
+    </text>
+  </g>
+
+  <g transform="translate(650, 42)">
+    <rect x="0" y="0" width="500" height="296" rx="12" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5"/>
+
+    <circle cx="22" cy="22" r="5" fill="#EF4444"/>
+    <circle cx="38" cy="22" r="5" fill="#F59E0B"/>
+    <circle cx="54" cy="22" r="5" fill="#10B981"/>
+    <text x="76" y="26" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" fill="#94A3B8">bridge_a2dlc.py &amp;&amp; contracts/validar.py</text>
+    <line x1="0" y1="42" x2="500" y2="42" stroke="#1E293B" stroke-width="1.5"/>
+
+    <g transform="translate(24, 58)">
+      <rect x="0" y="0" width="452" height="44" rx="8" fill="#0F172A" stroke="#8B5CF6" stroke-width="1.2"/>
+      <text x="16" y="19" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" font-weight="700" fill="#C4B5FD">1. FROZEN VERIFIER │ contrato.py (congelado=True)</text>
+      <text x="16" y="35" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" fill="#94A3B8">Deterministic (TPR=1, FPR=0) → Statistical → Human</text>
+
+      <rect x="0" y="54" width="452" height="44" rx="8" fill="#0F172A" stroke="#38BDF8" stroke-width="1.2"/>
+      <text x="16" y="73" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" font-weight="700" fill="#38BDF8">2. PARAMETRIC BLOCK │ reutilizacion_parametros.py</text>
+      <text x="16" y="89" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" fill="#94A3B8">Covers 20/20 policy variants with 0 silent failures (-72% cost)</text>
+
+      <rect x="0" y="108" width="452" height="44" rx="8" fill="#0F172A" stroke="#10B981" stroke-width="1.2"/>
+      <text x="16" y="127" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12" font-weight="700" fill="#34D399">3. SMT EXPORT │ bridge_a2dlc.py → A2-DLC Stage 1.5</text>
+      <text x="16" y="143" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" fill="#94A3B8">Exports SliceContract (S*) + Z3 DSL + Boundary Probes</text>
+
+      <rect x="0" y="166" width="452" height="54" rx="8" fill="#052E16" stroke="#10B981" stroke-width="1.5"/>
+      <text x="16" y="188" font-family="ui-monospace, SFMono-Regular, monospace" font-size="12.5" font-weight="700" fill="#6EE7B7">✓ Mathematically Verified Policy Execution</text>
+      <text x="16" y="208" font-family="ui-monospace, SFMono-Regular, monospace" font-size="11" fill="#A7F3D0">120 Seeded Benchmark Tasks  •  360 Perturbation Traps</text>
+    </g>
+  </g>
+</svg>
