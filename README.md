@@ -53,6 +53,20 @@ cp .claude/skills/compiled-policies/SKILL.md .agents/skills/compiled-policies/SK
 
 ---
 
+## 📊 Measured Benchmarks Summary
+
+| Experiment / Suite | Artifacts & Scripts | Measured Result |
+|---|---|---|
+| **H5: Parametric Policy Block Reuse** (`§12`) | `reutilizacion_parametros.py` · `exp/parametros/` | Covers **`20 / 20` (`100%`)** substantive policy variants with **`0` silent failures** and **`−72%` total cost** |
+| **H5 Negative Test: Structural Rule Change Detection** (`§12`) | `negativos_parametros.py` · `exp/parametros_negativos/` | Rejects **`12 / 12` (`100%`)** out-of-distribution structural rule changes instead of silently mis-executing |
+| **H2 Equivalence Judge (`Jev` vs. Claude Haiku)** (`§11`) | `juez_jev.py` · `exp/jev_juez/` | Matches Claude Haiku **`40 / 40` (`100%`)** at **`~287×` lower cost** |
+| **Seeded Synthetic Benchmark & Perturbation Traps** (`§2`) | `benchmark/` (`python -m benchmark.verificar`) | **`120 / 120`** valid answers pass · **`360 / 360`** perturbation traps fail ($\text{TPR}=1, \text{FPR}=0$) |
+| **Golden Corpus Deterministic Replay** (`corpus/`) | `corpus/` · `contracts/validar.py` | **`130 / 130`** deterministic replay on Linux (`103 / 130` on Windows) |
+
+> *Honest scope caveat:* `§11` and `§12` evaluate synthetic policy variants reproducible by seed; H1 (`κ` calibration on small pilots) was rejected and H3 post-hoc drift detection did not replicate in the gate (`§9`).
+
+---
+
 > **Status (Sep 27, 2026):** four hypotheses tested; H4 is proposed but not run (§9). H1 rejected,
 > H2 confirmed, and H3 post-hoc **not replicated** in the gate (§9). Jev as the H2 equivalence judge
 > matched Haiku 40/40 at ~287× lower cost (§11). H5, reusing blocks with parameters, covered 20/20
