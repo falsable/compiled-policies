@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/assets/hero-banner.svg" alt="compiled-policies — Executable Business Contracts, MDP Routing & Z3 SMT Bridge" width="100%" />
+<img src="docs/assets/compiled-policies-hero.jpg" alt="COMPILED-POLICIES // FORMAL CONTRACTS — Deterministic Business Policy Compiler, MDP Router & Z3 SMT Bridge" width="100%" />
 
-<br>
+# COMPILED-POLICIES — Executable Business Contracts, MDP Router & Z3 Bridge
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-3b82f6.svg?style=flat-square)](LICENSE)
 [![Bridge: A2-DLC S* + Z3](https://img.shields.io/badge/bridge-A2--DLC%20S*%20%2B%20Z3-10b981.svg?style=flat-square)](bridge_a2dlc.py)
