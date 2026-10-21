@@ -12,26 +12,33 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from dataclasses import dataclass
 try:
     from pydantic import BaseModel, Field
+
+    class InvarianteA2DLC(BaseModel):
+        """Invariante formal a nivel de slice conforme a slice-contract.schema.json."""
+
+        text: str = Field(description="Enunciado humano del invariante")
+        dsl: str | None = Field(None, description="Expresión en el DSL de A2-DLC (§6.2)")
+        verification: str = Field("smt", description="smt | smt+pbt | runtime_and_pbt")
 except ImportError:
-    BaseModel = None
+
+    @dataclass
+    class InvarianteA2DLC:  # type: ignore[no-redef]
+        """Invariante formal a nivel de slice conforme a slice-contract.schema.json."""
+
+        text: str
+        dsl: str | None = None
+        verification: str = "smt"
+
 
 # Esquemas de A2-DLC
 A2DLC_ROOT = Path(__file__).resolve().parent.parent / "a2dlc"
 CONTRACTS_DIR = A2DLC_ROOT / "contracts"
-
-
-@dataclass
-class InvarianteA2DLC:
-    """Invariante formal a nivel de slice conforme a slice-contract.schema.json."""
-    text: str
-    dsl: str | None = None
-    verification: str = "smt"
 
 
 # Operadores y patrones del DSL formal de A2-DLC (§6.2)
@@ -119,6 +126,24 @@ def inferir_invariantes_politica_compras() -> list[InvarianteA2DLC]:
     ]
 
 
+def extraer_invariantes_de_bloque(bloque: dict[str, Any]) -> list[InvarianteA2DLC]:
+    """Extrae y clasifica dinámicamente los invariantes declarados en un Bloque o ContratoBloque."""
+    raw_invs = bloque.get("invariantes") or bloque.get("invariants") or []
+    extracted: list[InvarianteA2DLC] = []
+    for item in raw_invs:
+        if isinstance(item, InvarianteA2DLC):
+            extracted.append(item)
+        elif isinstance(item, dict):
+            text = str(item.get("text") or item.get("descripcion") or item.get("dsl") or "")
+            dsl = item.get("dsl") or item.get("expresion")
+            if text:
+                extracted.append(clasificar_invariante(text, str(dsl) if dsl else None))
+        elif isinstance(item, str) and item.strip():
+            ok, _ = es_compatible_smt(item)
+            extracted.append(clasificar_invariante(item, item if ok else None))
+    return extracted
+
+
 def exportar_slice_contract(
     bloque: dict[str, Any],
     slice_id: str = "compras.procesar_solicitudes.v1",
@@ -127,7 +152,7 @@ def exportar_slice_contract(
 ) -> dict[str, Any]:
     """Compila un Bloque o ContratoBloque de compiled-policies en un SliceContract de A2-DLC v3.4."""
     if invariantes is None:
-        invariantes = inferir_invariantes_politica_compras()
+        invariantes = extraer_invariantes_de_bloque(bloque) or inferir_invariantes_politica_compras()
 
     invariants_payload = []
     for inv in invariantes:

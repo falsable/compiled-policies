@@ -80,6 +80,28 @@ def test_exportar_y_validar_slice_contract():
     assert ok, f"el contrato exportado no valida contra slice-contract.schema.json: {msg}"
 
 
+def test_extraer_invariantes_dinamicos_de_bloque():
+    bloque_custom = {
+        "id": "tesoreria.transferencia.v1",
+        "invariantes": [
+            {"text": "saldo origen no negativo", "dsl": "saldo_origen_final >= 0"},
+            {"text": "conservacion transferencia", "dsl": "saldo_origen_final + monto == saldo_origen_inicial"},
+            {"text": "auditoria externa manual para montos altos", "dsl": "forall tx in lote : tx.ok"},
+        ],
+    }
+    contract = exportar_slice_contract(
+        bloque=bloque_custom,
+        slice_id="tesoreria.transferencia.v1",
+        funcion_nombre="src/tesoreria/pagos.py::ejecutar_transferencia",
+    )
+    assert len(contract["invariants"]) == 3
+    assert contract["invariants"][0]["verification"] == "smt"
+    assert contract["invariants"][1]["verification"] == "smt"
+    assert contract["invariants"][2]["verification"] == "runtime_and_pbt"
+    ok, msg = validar_contra_schema_a2dlc(contract)
+    assert ok, f"contrato dinámico inválido: {msg}"
+
+
 def main():
     test_es_compatible_smt()
     print("ok   test_es_compatible_smt")
@@ -87,8 +109,11 @@ def main():
     print("ok   test_inferir_invariantes_politica_compras")
     test_exportar_y_validar_slice_contract()
     print("ok   test_exportar_y_validar_slice_contract")
-    print("3/3 tests de bridge_a2dlc pasados con éxito")
+    test_extraer_invariantes_dinamicos_de_bloque()
+    print("ok   test_extraer_invariantes_dinamicos_de_bloque")
+    print("4/4 tests de bridge_a2dlc pasados con éxito")
 
 
 if __name__ == "__main__":
     main()
+
