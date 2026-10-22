@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook claude",
+            "command": "a2dlc hook claude",
             "timeout": 60,
             "type": "command"
           }
@@ -27,7 +27,7 @@
       {
         "hooks": [
           {
-            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook claude",
+            "command": "a2dlc hook claude",
             "timeout": 1800,
             "type": "command"
           }

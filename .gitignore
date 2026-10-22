@@ -16,3 +16,9 @@ __pycache__/
 .a2dlc/reports/
 .a2dlc/escalations.json
 .a2dlc/run/
+
+# Security rules
+.env
+*.key
+*.pem
+node_modules/

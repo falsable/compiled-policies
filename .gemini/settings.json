@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook gemini",
+            "command": "a2dlc hook gemini",
             "name": "a2dlc",
             "type": "command"
           }
@@ -16,7 +16,7 @@
       {
         "hooks": [
           {
-            "command": "\"C:/Users/Usuario/go/bin/a2dlc.exe\" hook gemini",
+            "command": "a2dlc hook gemini",
             "name": "a2dlc",
             "type": "command"
           }

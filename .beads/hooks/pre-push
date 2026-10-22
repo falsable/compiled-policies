@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # --- BEGIN A2DLC ---
 # Stops the push if the verdict is not PASS, is stale or has unsigned waivers. It verifies HEAD, not each pushed ref.
-"C:/Users/Usuario/go/bin/a2dlc.exe" verify --commit HEAD || exit 1
+a2dlc verify --commit HEAD || exit 1
 # --- END A2DLC ---
 # --- BEGIN BEADS INTEGRATION v1.3.0 ---
 # This section is managed by beads. Do not remove these markers.
