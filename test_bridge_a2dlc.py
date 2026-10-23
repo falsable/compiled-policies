@@ -6,7 +6,6 @@ from pathlib import Path
 
 from bridge_a2dlc import (
     es_compatible_smt,
-    clasificar_invariante,
     inferir_invariantes_politica_compras,
     exportar_slice_contract,
     validar_contra_schema_a2dlc,

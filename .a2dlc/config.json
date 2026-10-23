@@ -32,7 +32,7 @@
       "id": "ruff",
       "image": "a2dlc-check-cmd:ruff",
       "command": "python /adapter.py ruff check --no-cache --output-format concise $A2DLC_CHANGED",
-      "severity": "advisory",
+      "severity": "blocking",
       "matches": [
         "**/*.py"
       ]
