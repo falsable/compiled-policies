@@ -15,5 +15,27 @@
   ],
   "agent_hook": {
     "max_blocks": 4
-  }
+  },
+  "checks": [
+    {
+      "id": "contract-validation",
+      "image": "a2dlc-check-cmd:0.1",
+      "command": "python /adapter.py --copy sh -c \"python contracts/validar.py || { echo contracts/v1/bloques.schema.json: contract tests failed; exit 1; }\"",
+      "severity": "blocking",
+      "matches": [
+        "contracts/v1/bloques.schema.json",
+        "contracts/validar.py",
+        "exp/reutilizacion/bloque_negocio.json"
+      ]
+    },
+    {
+      "id": "ruff",
+      "image": "a2dlc-check-cmd:ruff",
+      "command": "python /adapter.py ruff check --no-cache --output-format concise $A2DLC_CHANGED",
+      "severity": "advisory",
+      "matches": [
+        "**/*.py"
+      ]
+    }
+  ]
 }
