@@ -1,17 +1,5 @@
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "a2dlc hook claude",
-            "timeout": 60,
-            "type": "command"
-          }
-        ],
-        "matcher": "Edit|Write|NotebookEdit|Bash"
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [
@@ -21,17 +9,6 @@
           }
         ],
         "matcher": ""
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "a2dlc hook claude",
-            "timeout": 1800,
-            "type": "command"
-          }
-        ]
       }
     ]
   }
